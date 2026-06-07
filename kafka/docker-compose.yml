@@ -1,0 +1,59 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: civitas-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://192.168.1.89:9092,INTERNAL://civitas-kafka:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@civitas-kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      CLUSTER_ID: RBoUQecvQs2gGtNZLOp3Zw
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks:
+      - civitas-net
+    healthcheck:
+      test: kafka-topics --bootstrap-server localhost:9092 --list
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: civitas-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: civitas
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: civitas-kafka:9094
+      SERVER_PORT: 8090
+      AUTH_TYPE: LOGIN_FORM
+      SPRING_SECURITY_USER_NAME: civitas
+      SPRING_SECURITY_USER_PASSWORD: civitas2024
+    ports:
+      - "8090:8090"
+    networks:
+      - civitas-net
+
+volumes:
+  kafka-data:
+    driver: local
+
+networks:
+  civitas-net:
+    external: true

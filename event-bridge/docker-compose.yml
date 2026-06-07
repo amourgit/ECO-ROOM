@@ -1,0 +1,15 @@
+services:
+  event-bridge:
+    build: .
+    container_name: civitas-event-bridge
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    networks:
+      - civitas-net
+    environment:
+      KAFKA_BOOTSTRAP: civitas-kafka:9094
+
+networks:
+  civitas-net:
+    external: true

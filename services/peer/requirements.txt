@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+playwright
+google-genai
+aiokafka
+httpx
+websockets
+pydantic-settings
+python-dotenv

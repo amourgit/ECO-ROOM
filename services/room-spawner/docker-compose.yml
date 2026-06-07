@@ -1,0 +1,14 @@
+services:
+  room-spawner:
+    build: .
+    container_name: civitas-room-spawner
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8011:8011"
+    networks:
+      - civitas-net
+
+networks:
+  civitas-net:
+    external: true

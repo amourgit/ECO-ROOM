@@ -1,0 +1,83 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: civitas-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - "9091:9090"
+    networks:
+      - civitas-net
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: civitas-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - civitas-net
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: civitas-loki
+    restart: unless-stopped
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - civitas-net
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: civitas-promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/promtail.yml
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - civitas-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: civitas-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: civitas
+      GF_SECURITY_ADMIN_PASSWORD: civitas2024
+      GF_SERVER_HTTP_PORT: 3000
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_LOG_LEVEL: warn
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - civitas-net
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+
+networks:
+  civitas-net:
+    external: true

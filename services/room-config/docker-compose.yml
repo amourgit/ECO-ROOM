@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: civitas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: room_config
+      POSTGRES_USER: civitas
+      POSTGRES_PASSWORD: civitas2024
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - civitas-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civitas -d room_config"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  room-config:
+    build: .
+    container_name: civitas-room-config
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8010:8010"
+    networks:
+      - civitas-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  civitas-net:
+    external: true
+
+volumes:
+  postgres-data:
+    driver: local

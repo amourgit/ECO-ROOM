@@ -1,0 +1,19 @@
+services:
+  peer:
+    build: .
+    container_name: civitas-peer
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8002:8002"
+    volumes:
+      - /opt/civitas/certs:/certs:ro
+    networks:
+      - civitas-net
+    extra_hosts:
+      - "meet.civitas.local:192.168.1.89"
+    shm_size: '2gb'
+
+networks:
+  civitas-net:
+    external: true
