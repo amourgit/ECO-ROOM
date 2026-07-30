@@ -1,3 +1,5 @@
+Test git global
+
 # CIVITAS — Documentation API complète & Guide de test CLI (curl)
 
 > Toutes les requêtes curl pour tester chaque endpoint de la plateforme CIVITAS.  
