@@ -18,4 +18,6 @@ scrape_configs:
 
   - job_name: 'kafka'
     static_configs:
-      - targets: ['civitas-kafka:9092']
+      # Le port 9092/9094 est le protocole Kafka natif (pas du Prometheus).
+      # On scrape le kafka-exporter dédié (voir kafka/docker-compose.yml).
+      - targets: ['civitas-kafka-exporter:9308']

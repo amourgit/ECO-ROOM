@@ -105,6 +105,16 @@ Le système est conçu pour un déploiement sur un serveur Linux local (IP `192.
 | `CONTROLLER` | `0.0.0.0:9093` | Coordination KRaft interne |
 | `INTERNAL` | `0.0.0.0:9094` | Communication inter-containers Docker (`civitas-kafka:9094`) |
 
+> **Règle stricte :** tout ce qui tourne dans le réseau Docker `civitas-net`
+> (event-bridge, peer, room-spawner, kafka-ui, kafka-exporter, healthcheck du
+> broker lui-même) utilise **exclusivement** `civitas-kafka:9094` (`INTERNAL`).
+> Le listener `PLAINTEXT` (`192.168.1.89:9092`) est réservé aux clients
+> **hors** réseau Docker (poste de dev, outil externe). Ne jamais utiliser
+> `localhost:9092` dans un `docker exec` ou un healthcheck : le broker
+> annonce `192.168.1.89:9092` pour ce listener, et le client retente sa
+> connexion sur cette adresse après le premier contact — ce qui échoue ou
+> bloque selon la configuration réseau de l'hôte (hairpin NAT non garanti).
+
 #### Configuration notable
 
 - `KAFKA_AUTO_CREATE_TOPICS_ENABLE: true` — les topics sont créés à la première publication
@@ -119,6 +129,18 @@ Le système est conçu pour un déploiement sur un serveur Linux local (IP `192.
 **Port :** `8090`  
 **Auth :** login `civitas` / mot de passe `civitas2024`  
 **Connexion interne :** `civitas-kafka:9094`
+
+#### Kafka Exporter (métriques Prometheus)
+
+**Image :** `danielqsj/kafka-exporter:latest`  
+**Container :** `civitas-kafka-exporter`  
+**Port :** `9308`  
+**Connexion interne :** `civitas-kafka:9094`
+
+> Ajouté car le port `9092`/`9094` sert uniquement le protocole Kafka natif —
+> il n'a jamais exposé de métriques Prometheus, rendant le job `kafka`
+> silencieusement inopérant. Prometheus scrape désormais
+> `civitas-kafka-exporter:9308`.
 
 ---
 
@@ -270,7 +292,7 @@ Si une room n'a pas de config, le service en crée une automatiquement avec le p
 
 | Variable | Défaut | Description |
 |----------|--------|-------------|
-| `KAFKA_BOOTSTRAP` | `192.168.1.89:9092` | Bootstrap Kafka |
+| `KAFKA_BOOTSTRAP` | `civitas-kafka:9094` | Bootstrap Kafka (listener `INTERNAL` — jamais l'IP hôte) |
 | `PEER_SERVICE_URL` | `http://civitas-peer:8002` | URL du Peer Service |
 | `ROOM_CONFIG_URL` | `http://civitas-room-config:8010` | URL du Room Config |
 | `ROOM_CONFIG_TOKEN` | `civitas-room-config-token` | Token auth Room Config |
@@ -297,7 +319,7 @@ Si une room n'a pas de config, le service en crée une automatiquement avec le p
 | `JITSI_CA_CERT` | `/certs/civitas.local.crt` |
 | `ROOM_CONFIG_URL` | `http://civitas-room-config:8010` |
 | `ROOM_CONFIG_TOKEN` | `civitas-room-config-token` |
-| `KAFKA_BOOTSTRAP` | `192.168.1.89:9092` |
+| `KAFKA_BOOTSTRAP` | `civitas-kafka:9094` (listener `INTERNAL` — jamais l'IP hôte) |
 | `API_TOKEN` | `civitas-peer-token` |
 
 #### Modèle Gemini utilisé
@@ -421,7 +443,7 @@ Logique de résolution (`current_speaker()`) :
 - `localhost:9091` (Prometheus lui-même)
 - `192.168.1.89:9100` (JVB metrics)
 - `node-exporter:9100` (métriques OS)
-- `civitas-kafka:9092` (Kafka metrics)
+- `civitas-kafka-exporter:9308` (Kafka metrics)
 
 **Sources Promtail (logs scrapés) :**
 - `/var/log/jitsi/*.log` → label `job: jitsi`

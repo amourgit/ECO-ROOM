@@ -3,7 +3,8 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    KAFKA_BOOTSTRAP: str = "192.168.1.89:9092"
+    # Communication inter-conteneurs Docker -> listener INTERNAL (jamais l'IP hôte).
+    KAFKA_BOOTSTRAP: str = "civitas-kafka:9094"
     PEER_SERVICE_URL: str = "http://civitas-peer:8002"
     ROOM_CONFIG_URL: str = "http://civitas-room-config:8010"
     ROOM_CONFIG_TOKEN: str = "civitas-room-config-token"

@@ -1147,34 +1147,41 @@ curl -s -X POST http://192.168.1.89:8010/rooms/ \
 
 > Nécessite les outils kafka-console installés, ou l'accès au container kafka.
 
+> ⚠️ Ne jamais utiliser `--bootstrap-server localhost:9092` (listener `PLAINTEXT`)
+> dans ces commandes : ce listener est annoncé sur `192.168.1.89:9092`
+> (`KAFKA_ADVERTISED_LISTENERS`), donc le client se reconnecte sur cette IP
+> après le premier contact — souvent injoignable en boucle depuis le
+> conteneur, d'où des commandes qui restent bloquées puis expirent.
+> Utiliser systématiquement le listener `INTERNAL` (`civitas-kafka:9094`).
+
 ```bash
 # Via docker exec
-docker exec civitas-kafka kafka-topics --bootstrap-server localhost:9092 --list
+docker exec civitas-kafka kafka-topics --bootstrap-server civitas-kafka:9094 --list
 
 # Consommer les messages du topic room.transcriptions
 docker exec civitas-kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
+  --bootstrap-server civitas-kafka:9094 \
   --topic room.transcriptions \
   --from-beginning \
   --max-messages 10
 
 # Consommer les événements room Jitsi
 docker exec civitas-kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
+  --bootstrap-server civitas-kafka:9094 \
   --topic jitsi.room.events \
   --from-beginning \
   --max-messages 5
 
 # Consommer les événements participants
 docker exec civitas-kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
+  --bootstrap-server civitas-kafka:9094 \
   --topic jitsi.participant.events \
   --from-beginning \
   --max-messages 10
 
 # Lister les topics avec leurs offsets
 docker exec civitas-kafka kafka-run-class kafka.tools.GetOffsetShell \
-  --broker-list localhost:9092 \
+  --broker-list civitas-kafka:9094 \
   --topic room.transcriptions
 ```
 
