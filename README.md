@@ -223,7 +223,7 @@ L'Event Bridge maintient un dictionnaire `_room_state` avec la présence en temp
 **Port :** `8010`  
 **Base de données :** PostgreSQL 16 (`civitas-postgres`, base `room_config`, user `civitas`, password `civitas2024`)  
 **Auth API :** Bearer token `civitas-room-config-token`  
-**Framework :** FastAPI + SQLAlchemy 2.0 + Alembic
+**Framework :** FastAPI + SQLAlchemy 2.0 + Alembic + aiokafka (consumer d'historique)
 
 #### Modèle de données — Table `room_configs`
 
@@ -257,6 +257,25 @@ Trois templates de prompts sont définis :
 #### Comportement auto-création
 
 Si une room n'a pas de config, le service en crée une automatiquement avec le prompt par défaut dès que quelqu'un appelle `GET /rooms/{room_id}/context`. C'est le comportement utilisé par le Peer au démarrage.
+
+#### Historique de réunion persistant — Table `room_history_entries`
+
+**Rôle :** mémoire durable et complète de la réunion (paroles participants transcrites, paroles de l'agent, messages chat), découplée du cycle de vie du service `peer`. C'est la source de vérité : un crash/redémarrage du peer, ou une simple reconnexion Gemini, ne fait jamais perdre cette mémoire.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| `id` | BigInteger PK | Auto-incrémenté |
+| `room_id` | String(255), indexé | Identifiant de la room |
+| `speaker_id` | String(255), nullable | `endpoint_id` Jitsi ou `civitas-peer` |
+| `speaker_name` | String(255) | Nom affiché |
+| `entry_type` | String(32) | `participant` / `agent` / `chat` |
+| `text` | Text | Contenu (transcrit ou écrit) |
+| `extra` | JSON, nullable | Champ libre (ex: `room_snapshot`) |
+| `occurred_at` | DateTime, indexé avec `room_id` | Horodatage de l'interaction |
+
+**Alimentation :** un consumer Kafka embarqué (`app/kafka/consumer.py`, groupe `civitas-room-history`) écoute en continu le topic `room.transcriptions` (déjà publié par `peer`, cf. 3.5) et persiste chaque message. Reconnexion infinie avec backoff, `enable_auto_commit=False` — l'offset n'est commité qu'après écriture DB réussie (sémantique *at-least-once* : un doublon rarissime est possible en cas de crash exact entre écriture et commit, la perte de données non).
+
+**Lecture :** `GET /rooms/{room_id}/history?limit=200` — retourne les entrées brutes **et** un `formatted_context` prêt à injecter tel quel. Utilisé par `peer` pour se réhydrater à chaque join (cf. 3.5).
 
 ---
 
@@ -321,6 +340,8 @@ Si une room n'a pas de config, le service en crée une automatiquement avec le p
 | `ROOM_CONFIG_TOKEN` | `civitas-room-config-token` |
 | `KAFKA_BOOTSTRAP` | `civitas-kafka:9094` (listener `INTERNAL` — jamais l'IP hôte) |
 | `API_TOKEN` | `civitas-peer-token` |
+| `HISTORY_REHYDRATE_LIMIT` | `300` (nb d'entrées rapatriées de l'historique persisté au join) |
+| `CONTEXT_MAX_ENTRIES` | `80` (nb d'entrées réinjectées dans Gemini à chaque reconnexion)
 
 #### Modèle Gemini utilisé
 
@@ -357,9 +378,10 @@ PeerInstance (room_id)
 
 1. **start()** :
    - Charge la config de l'agent (`get_agent_context()` → Room Config Service)
+   - Réhydrate la mémoire de réunion : `get_room_history()` → Room Config Service → `ContextStore.seed()` (dégradation gracieuse si indisponible : historique local vide, comme avant)
    - Enregistre les handlers sur l'EventBus
    - Démarre `AudioPipe` (WebSocket local sur port dynamique)
-   - Démarre `GeminiSession` (connexion Gemini Live API)
+   - Démarre `GeminiSession` (connexion Gemini Live API), avec `context_provider=self._build_catchup_context`
    - Démarre `CivitasBrowser` (Playwright → Jitsi)
    - Attend la connexion AudioPipe (timeout 20s)
    - Lance le watcher de connexion Jitsi (`_watch_connection`, vérifie toutes les 10s)
@@ -368,16 +390,21 @@ PeerInstance (room_id)
 
 2. **En fonctionnement** :
    - Audio entrant (participants) → AudioPipe → Gemini (`send_audio`)
-   - Gemini transcrit → `_on_participant_speech` → Kafka + ContextStore
+   - Gemini transcrit → `_on_participant_speech` → ContextStore (local) + Kafka (`room.transcriptions`, persisté durablement côté Room Config)
    - Gemini répond en audio → `_on_gemini_audio` → AudioPipe → Chrome → Jitsi JVB
-   - Gemini transcrit sa réponse → `_on_agent_speech` → Kafka
-   - Messages chat Jitsi → `_on_chat_message` → réponse Gemini (texte ou audio)
+   - Gemini transcrit sa réponse → `_on_agent_speech` → ContextStore + Kafka
+   - Messages chat Jitsi → `_on_chat_message` → ContextStore + Kafka, puis réponse Gemini (texte ou audio)
    - Événements Jitsi → EventBus → handlers (speaker, log, kafka, modération)
+   - **À chaque (re)connexion Gemini** (première connexion comme reconnexion après coupure) : `GeminiSession` appelle `context_provider()` — lecture purement locale (`ContextStore.build_context()`, aucune dépendance réseau) — et réinjecte la mémoire de réunion (`end_of_turn=False`, cadrée comme "mémoire interne, ne pas lire à voix haute") avant de reprendre le flux audio normal. L'agent revient donc naturellement dans le sujet en cours même après une coupure, sans jamais avoir besoin de solliciter à nouveau le réseau au moment précis où celui-ci vient de faire défaut.
 
 3. **stop()** :
    - Envoie message d'au revoir dans le chat
    - Arrête Browser → Gemini → AudioPipe
    - Publie `peer.left` sur Kafka
+
+> **Mémoire de réunion — deux niveaux de résilience :**
+> 1. *Coupure Gemini / reconnexion* (le cas le plus fréquent) → réinjection instantanée depuis `ContextStore` en RAM, sans aucune I/O réseau.
+> 2. *Crash ou redémarrage complet du service peer* → réhydratation depuis Postgres (via Room Config Service) au prochain `start()`, donc l'historique complet survit même à la perte totale du process agent.
 
 #### Règles de réponse de l'agent
 

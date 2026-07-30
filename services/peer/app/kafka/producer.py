@@ -10,31 +10,68 @@ settings = get_settings()
 log = logging.getLogger(__name__)
 
 _producer: AIOKafkaProducer | None = None
+_reconnect_task: asyncio.Task | None = None
+_running = False
+
+
+async def _connect_once() -> bool:
+    global _producer
+    try:
+        producer = AIOKafkaProducer(
+            bootstrap_servers=settings.KAFKA_BOOTSTRAP,
+            value_serializer=lambda v: json.dumps(v).encode(),
+            key_serializer=lambda k: k.encode() if k else None,
+        )
+        await producer.start()
+        _producer = producer
+        log.info("[KafkaProducer] Connecté ✓")
+        return True
+    except Exception as e:
+        log.warning(f"[KafkaProducer] Connexion échouée: {e}")
+        _producer = None
+        return False
+
+
+async def _reconnect_loop():
+    """
+    Retente indéfiniment en arrière-plan, avec backoff, tant que non connecté.
+    Sans ça, une indisponibilité Kafka au démarrage du peer tuait
+    silencieusement et définitivement toute publication pour toute la durée
+    de vie du process — donc une partie de l'historique de réunion perdue
+    sans aucun signal.
+    """
+    backoff = 5
+    while _running and not _producer:
+        if await _connect_once():
+            return
+        await asyncio.sleep(backoff)
+        backoff = min(backoff * 2, 30)
 
 
 async def start():
-    global _producer
-    max_retries = 10
-    for attempt in range(max_retries):
-        try:
-            _producer = AIOKafkaProducer(
-                bootstrap_servers=settings.KAFKA_BOOTSTRAP,
-                value_serializer=lambda v: json.dumps(v).encode(),
-                key_serializer=lambda k: k.encode() if k else None,
-            )
-            await _producer.start()
-            log.info("[KafkaProducer] Connecté ✓")
+    global _running
+    _running = True
+    # Quelques tentatives rapides et synchrones (cas nominal : Kafka déjà prêt),
+    # puis on bascule en reconnexion de fond indéfinie si ça échoue encore.
+    for attempt in range(5):
+        if await _connect_once():
             return
-        except Exception as e:
-            log.warning(f"[KafkaProducer] Tentative {attempt+1}/{max_retries} échouée: {e}")
-            _producer = None
-            if attempt < max_retries - 1:
-                await asyncio.sleep(5)
-    log.error("[KafkaProducer] Impossible de se connecter à Kafka — démarrage sans Kafka")
+        if attempt < 4:
+            await asyncio.sleep(5)
+    log.warning("[KafkaProducer] Toujours indisponible — reconnexion en arrière-plan")
+    global _reconnect_task
+    _reconnect_task = asyncio.create_task(_reconnect_loop())
 
 
 async def stop():
-    global _producer
+    global _producer, _running, _reconnect_task
+    _running = False
+    if _reconnect_task:
+        _reconnect_task.cancel()
+        try:
+            await _reconnect_task
+        except asyncio.CancelledError:
+            pass
     if _producer:
         await _producer.stop()
         _producer = None
@@ -50,11 +87,21 @@ async def publish(topic: str, key: str, payload: dict):
         log.warning(f"[KafkaProducer] {topic}: {e}")
 
 
-async def publish_transcription(room_id: str, speaker: str, text: str, entry_type: str = "participant"):
-    await publish("room.transcriptions", room_id, {
-        "room_id": room_id, "speaker": speaker,
+async def publish_transcription(
+    room_id: str,
+    speaker: str,
+    text: str,
+    entry_type: str = "participant",
+    speaker_id: str | None = None,
+    extra: dict | None = None,
+):
+    payload = {
+        "room_id": room_id, "speaker": speaker, "speaker_id": speaker_id,
         "text": text, "entry_type": entry_type, "source": "civitas-peer",
-    })
+    }
+    if extra:
+        payload["extra"] = extra
+    await publish("room.transcriptions", room_id, payload)
 
 
 async def publish_agent_action(room_id: str, action: str, details: dict = {}):

@@ -53,3 +53,29 @@ def _default_context(room_id: str) -> dict:
         "invocation_keywords": ["civitas"],
         "tools_allowed": [],
     }
+
+
+async def get_room_history(room_id: str, limit: int = 200) -> list[dict]:
+    """
+    Récupère l'historique complet et persistant de la réunion (Postgres, via
+    room-config) — utilisé pour réhydrater la mémoire locale du peer au
+    (re)join, y compris après un crash/redémarrage complet du process.
+
+    Dégradation gracieuse : si l'appel échoue (room-config indisponible),
+    on retourne une liste vide et le peer démarre avec un historique local
+    vide, comme avant — jamais bloquant pour le join.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(
+                f"{settings.ROOM_CONFIG_URL}/rooms/{room_id}/history",
+                params={"limit": limit},
+                headers=HEADERS,
+            )
+            if r.status_code == 200:
+                entries = r.json().get("entries", [])
+                log.info(f"[RoomConfig] Historique chargé pour {room_id}: {len(entries)} entrée(s)")
+                return entries
+    except Exception as e:
+        log.warning(f"[RoomConfig] Erreur chargement historique {room_id}: {e}")
+    return []

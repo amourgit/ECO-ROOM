@@ -350,6 +350,47 @@ curl -s http://192.168.1.89:8010/rooms/salle-42/context \
 
 ---
 
+### GET /rooms/{room_id}/history
+
+**Historique complet et persistant de la réunion** (paroles participants transcrites, paroles de l'agent, messages chat). Utilisé par le Peer pour se réhydrater — au join initial comme après un redémarrage/crash. Alimenté en continu par un consumer Kafka qui écoute `room.transcriptions` (cf. Test 6).
+
+```bash
+curl -s "http://192.168.1.89:8010/rooms/salle-42/history?limit=200" \
+  -H "Authorization: Bearer civitas-room-config-token" \
+  | python3 -m json.tool
+```
+
+**Paramètre :** `limit` (optionnel, défaut 200, max 1000) — nombre d'entrées les plus récentes.
+
+**Réponse JSON (RoomHistoryResponse) :**
+```json
+{
+  "room_id": "salle-42",
+  "count": 3,
+  "entries": [
+    {
+      "speaker_id": "ep1",
+      "speaker_name": "Alice",
+      "entry_type": "participant",
+      "text": "Bonjour tout le monde",
+      "occurred_at": "2026-07-30T23:42:11.396546"
+    },
+    {
+      "speaker_id": "civitas-peer",
+      "speaker_name": "CIVITAS",
+      "entry_type": "agent",
+      "text": "Bonjour Alice, je vous écoute.",
+      "occurred_at": "2026-07-30T23:42:11.406638"
+    }
+  ],
+  "formatted_context": "[23:42:11] Alice: Bonjour tout le monde\n[23:42:11] CIVITAS: Bonjour Alice, je vous écoute."
+}
+```
+
+`formatted_context` est prêt à être injecté tel quel dans le contexte de l'agent — c'est ce que consomme `ContextStore.seed()` côté Peer.
+
+---
+
 ### POST /rooms/
 
 Crée une nouvelle configuration de room.
@@ -1164,6 +1205,12 @@ docker exec civitas-kafka kafka-console-consumer \
   --topic room.transcriptions \
   --from-beginning \
   --max-messages 10
+
+# Vérifier que le consumer d'historique (room-config) est bien à jour
+# (LAG doit tendre vers 0 en fonctionnement normal)
+docker exec civitas-kafka kafka-consumer-groups \
+  --bootstrap-server civitas-kafka:9094 \
+  --describe --group civitas-room-history
 
 # Consommer les événements room Jitsi
 docker exec civitas-kafka kafka-console-consumer \

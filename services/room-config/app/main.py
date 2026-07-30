@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
 from app.routers import rooms, health
+from app.kafka import consumer as history_consumer
 from app.config import get_settings
 
 logging.basicConfig(
@@ -21,8 +22,10 @@ async def lifespan(app: FastAPI):
     log.info("[RoomConfig] Démarrage — initialisation base de données...")
     init_db()
     log.info("[RoomConfig] Base de données prête ✓")
+    await history_consumer.start()
     yield
     log.info("[RoomConfig] Arrêt")
+    await history_consumer.stop()
 
 
 app = FastAPI(

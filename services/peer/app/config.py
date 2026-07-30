@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     SERVICE_PORT: int = 8002
     API_TOKEN: str = "civitas-peer-token"
 
+    # Mémoire de réunion : nombre d'entrées rapatriées depuis l'historique
+    # persisté (room-config/Postgres) au (re)join, et nombre d'entrées
+    # réinjectées dans Gemini à chaque (re)connexion de la session Live.
+    HISTORY_REHYDRATE_LIMIT: int = 300
+    CONTEXT_MAX_ENTRIES: int = 80
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

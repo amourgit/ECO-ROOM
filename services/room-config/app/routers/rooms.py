@@ -9,7 +9,9 @@ from app.schemas.room_config import (
     RoomConfigResponse,
     AgentContextResponse,
 )
+from app.schemas.room_history import RoomHistoryResponse
 from app.services import room_config_service as svc
+from app.services import room_history_service as history_svc
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -36,6 +38,28 @@ def get_agent_context(
     """
     config = svc.get_or_create_default(db, room_id)
     return svc.build_agent_context(config)
+
+
+@router.get("/{room_id}/history", response_model=RoomHistoryResponse)
+def get_room_history(
+    room_id: str,
+    limit: int = history_svc.DEFAULT_LIMIT,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token),
+):
+    """
+    Historique complet et persistant de la réunion (audio transcrit, chat,
+    paroles de l'agent). Utilisé par le peer pour se réhydrater — au join
+    initial comme après un redémarrage/crash — et retrouver naturellement
+    le fil de la réunion en cours.
+    """
+    entries = history_svc.get_history(db, room_id, limit)
+    return RoomHistoryResponse(
+        room_id=room_id,
+        count=len(entries),
+        entries=entries,
+        formatted_context=history_svc.format_context(entries),
+    )
 
 
 @router.get("/", response_model=list[RoomConfigResponse])

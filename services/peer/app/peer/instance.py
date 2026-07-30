@@ -21,7 +21,7 @@ from app.audio.pipe import AudioPipe
 from app.gemini.session import GeminiSession
 from app.browser.browser import CivitasBrowser
 from app.context.store import ContextStore
-from app.room.config_client import get_agent_context
+from app.room.config_client import get_agent_context, get_room_history
 from app.kafka import producer as kafka
 from app.events.bus import EventBus
 from app.events.handlers import (
@@ -95,6 +95,15 @@ class PeerInstance:
 
         log.info(f"[Peer:{self.room_id}] Agent={agent_name} Mode={self.context.get('behavior_mode')}")
 
+        # Réhydratation de la mémoire de réunion — couvre aussi bien le
+        # premier join (réunion déjà en cours si ce peer redémarre après un
+        # crash) que tout redémarrage complet du process. Dégradation
+        # gracieuse : historique vide si room-config est injoignable.
+        history = await get_room_history(self.room_id, limit=settings.HISTORY_REHYDRATE_LIMIT)
+        seeded  = self.store.seed(history)
+        if seeded:
+            log.info(f"[Peer:{self.room_id}] Mémoire réhydratée : {seeded} entrée(s)")
+
         self.bus.register("*", make_speaker_handler(self.tracker))
         self.bus.register("*", make_log_handler(self.room_id))
         self.bus.register("*", make_kafka_handler(self.room_id, kafka))
@@ -108,6 +117,7 @@ class PeerInstance:
             on_speech=self._on_agent_speech,
             on_audio=self._on_gemini_audio,
             on_transcription=self._on_participant_speech,
+            context_provider=self._build_catchup_context,
         )
         await self.gemini.start()
 
@@ -169,6 +179,17 @@ class PeerInstance:
         await kafka.publish_room_event(self.room_id, "peer.left", {"agent_name": agent_name})
         log.info(f"[Peer:{self.room_id}] Arrêté ✓")
 
+    def _build_catchup_context(self) -> str:
+        """
+        Fournit le texte de mémoire à injecter à chaque (re)connexion Gemini.
+        Lecture purement locale (RAM) — jamais bloquant, jamais dépendant du
+        réseau, donc fiable même si c'est une panne réseau qui vient de
+        provoquer la reconnexion.
+        """
+        if self.store.is_empty:
+            return ""
+        return self.store.build_context(max_entries=settings.CONTEXT_MAX_ENTRIES)
+
     # ─────────────────────────────────────────────────────────────────────────
     # Événements Jitsi → EventBus
     # ─────────────────────────────────────────────────────────────────────────
@@ -204,7 +225,9 @@ class PeerInstance:
             return
         agent_name = self.context.get("agent_name", "CIVITAS")
         self.store.add("civitas-peer", agent_name, text, "agent")
-        await kafka.publish_transcription(self.room_id, agent_name, text, "agent")
+        await kafka.publish_transcription(
+            self.room_id, agent_name, text, "agent", speaker_id="civitas-peer"
+        )
         if self._chat_reply_mode == "text":
             self._chat_reply_buffer.append(text.strip())
             if self._chat_flush_task:
@@ -217,16 +240,13 @@ class PeerInstance:
         ep_id, name = self.tracker.current_speaker()
         log.info(f"[Peer:{self.room_id}] 🗣 [{name} / {ep_id}]: {text[:100]}")
         self.store.add(ep_id or "participant", name, text, "participant")
-        await kafka.publish_transcription(self.room_id, name, text, "participant")
-        await kafka.publish("room.transcriptions", self.room_id, {
-            "room_id":       self.room_id,
-            "speaker":       name,
-            "endpoint_id":   ep_id,
-            "text":          text,
-            "entry_type":    "participant",
-            "source":        "civitas-peer",
-            "room_snapshot": self.tracker.snapshot(),
-        })
+        # Une seule publication (ex-doublon corrigé : publish_transcription()
+        # ET ce publish() explicite écrivaient tous les deux sur
+        # room.transcriptions pour le même événement).
+        await kafka.publish_transcription(
+            self.room_id, name, text, "participant",
+            speaker_id=ep_id, extra={"room_snapshot": self.tracker.snapshot()},
+        )
         text_lower = text.lower()
         keywords   = self.context.get("invocation_keywords", ["civitas"])
         vision_kw  = ["regarde", "vois", "écran", "capture", "screenshot", "analyse"]
@@ -249,7 +269,9 @@ class PeerInstance:
 
     async def _on_chat_message(self, sender: str, text: str, endpoint_id: str):
         self.store.add(endpoint_id, sender, f"[chat] {text}", "chat")
-        await kafka.publish_transcription(self.room_id, sender, text, "chat")
+        await kafka.publish_transcription(
+            self.room_id, sender, text, "chat", speaker_id=endpoint_id
+        )
         if self.context.get("behavior_mode") == "silent":
             return
         text_lower = text.lower()
