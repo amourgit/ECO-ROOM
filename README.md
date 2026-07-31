@@ -341,7 +341,8 @@ Si une room n'a pas de config, le service en crée une automatiquement avec le p
 | `KAFKA_BOOTSTRAP` | `civitas-kafka:9094` (listener `INTERNAL` — jamais l'IP hôte) |
 | `API_TOKEN` | `civitas-peer-token` |
 | `HISTORY_REHYDRATE_LIMIT` | `300` (nb d'entrées rapatriées de l'historique persisté au join) |
-| `CONTEXT_MAX_ENTRIES` | `80` (nb d'entrées réinjectées dans Gemini à chaque reconnexion)
+| `CONTEXT_MAX_ENTRIES` | `80` (nb d'entrées réinjectées dans Gemini à chaque reconnexion) |
+| `ORAL_REQUEST_KEYWORDS` | `oral,voix,parle,vocal,dis à voix,à voix haute,audio` (mots déclenchant une réponse orale sur sollicitation écrite)
 
 #### Modèle Gemini utilisé
 
@@ -406,18 +407,36 @@ PeerInstance (room_id)
 > 1. *Coupure Gemini / reconnexion* (le cas le plus fréquent) → réinjection instantanée depuis `ContextStore` en RAM, sans aucune I/O réseau.
 > 2. *Crash ou redémarrage complet du service peer* → réhydratation depuis Postgres (via Room Config Service) au prochain `start()`, donc l'historique complet survit même à la perte totale du process agent.
 
-#### Règles de réponse de l'agent
+#### Règles de réponse de l'agent — `app/peer/response_policy.py`
 
-| Condition | Comportement |
-|-----------|-------------|
-| Mode `silent` | L'agent n'intervient jamais |
-| Message chat sans mot-clé | Ignoré |
-| Message chat avec mot-clé + "parle/oral/voix" | Répond en **audio** |
-| Message chat avec mot-clé (sans verbal) | Répond par **chat** |
-| Parole avec mot-clé + "regarde/screenshot/écran" | Capture frame + vision Gemini |
-| TALK_WHILE_MUTED Jitsi | Chat automatique d'avertissement |
-| Raised Hand | Chat automatique de notification |
-| Seul 10 minutes | Auto-stop |
+**Principe :** une sollicitation vocale obtient toujours une réponse vocale (l'agent est un participant comme un autre dans une réunion live). Une sollicitation écrite (chat) obtient par défaut une réponse écrite — pour ne jamais interrompre la réunion avec de l'audio non sollicité — sauf demande explicite d'une réponse orale.
+
+| Condition | Comportement | `ResponseMode` |
+|-----------|-------------|-----------------|
+| Mode `silent` | L'agent n'intervient jamais | — |
+| Parole participant + mot-clé d'invocation | Répond en **audio**, diffusé dans la réunion | `AUDIO` |
+| Message chat + mot-clé d'invocation, sans demande orale | Répond par **écrit** dans le chat | `TEXT` |
+| Message chat + mot-clé d'invocation + `ORAL_REQUEST_KEYWORDS` ("à voix haute", "vocalement"...) | Répond en **audio** malgré la sollicitation écrite | `AUDIO` |
+| Message chat sans mot-clé d'invocation | Ignoré | — |
+| Parole/chat + mot-clé + "regarde/screenshot/écran" | Capture frame + vision Gemini, réponse toujours écrite | `TEXT` |
+| TALK_WHILE_MUTED Jitsi | Chat automatique d'avertissement | — |
+| Raised Hand | Chat automatique de notification | — |
+| Seul 10 minutes | Auto-stop | — |
+
+En mode `TEXT`, l'audio généré par Gemini est transcrit (cf. ci-dessous) puis **jamais diffusé** à la réunion (`_on_gemini_audio` l'ignore tant que `response_mode == TEXT`) ; seule sa transcription est postée dans le chat. Le mode revient automatiquement à `AUDIO` juste après.
+
+#### Transcription — garantie de complétude, jamais de fragments
+
+L'API Gemini Live délivre les transcriptions (participant **et** agent) en fragments successifs (deltas), pas en un seul bloc. `GeminiSession` les accumule et ne les restitue qu'une fois complètes :
+
+- Chaque fragment (`input_transcription.text` / `output_transcription.text`) est accumulé dans un buffer dédié.
+- Dès que l'API marque le segment `finished=True` (champ natif de `Transcription`), le buffer est vidé et le texte **complet** est transmis en un seul appel (`on_transcription()` / `on_speech()`).
+- Filet de sécurité : `turn_complete` ou `interrupted` (coupure de parole) déclenche aussi un flush, pour ne jamais perdre un fragment resté en attente si `finished` n'arrivait pas.
+- Une déconnexion abrupte (coupure réseau, avant tout signal `finished`/`turn_complete`) déclenche également ce flush (bloc `finally`) — un fragment déjà reçu n'est jamais silencieusement jeté.
+
+Ainsi : **si l'agent reçoit de l'audio, sa réponse (audio ou texte) vient toujours accompagnée de la transcription complète de ce qu'il a entendu ET de ce qu'il a répondu** — les deux étant persistés dans l'historique de réunion (cf. 3.3).
+
+**Corrélation `turn_id` :** un identifiant (UUID) est généré au premier fragment d'un tour et partagé entre la transcription d'entrée et la réponse de sortie de ce même tour (reset uniquement sur `turn_complete`/`interrupted`, jamais sur un simple vidage local de buffer — sinon la corrélation entrée/sortie casserait dès que l'input est flush avant que l'output ne démarre). Stocké dans le champ `extra.turn_id` de `room_history_entries` — permet de retrouver la paire question/réponse exacte d'un échange dans l'historique persisté.
 
 #### Le pont audio (AudioPipe + AUDIO_BRIDGE_JS)
 

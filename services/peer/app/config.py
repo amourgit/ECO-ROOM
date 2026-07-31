@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     HISTORY_REHYDRATE_LIMIT: int = 300
     CONTEXT_MAX_ENTRIES: int = 80
 
+    # Mots-clés (séparés par des virgules) qui, dans un message chat,
+    # demandent explicitement une réponse orale plutôt qu'écrite.
+    # cf. app/peer/response_policy.py
+    ORAL_REQUEST_KEYWORDS: str = "oral,voix,parle,vocal,dis à voix,à voix haute,audio"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

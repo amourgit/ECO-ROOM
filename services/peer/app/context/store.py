@@ -9,6 +9,9 @@ class SpeechEntry:
     text: str
     entry_type: str = "participant"
     timestamp: datetime = field(default_factory=datetime.utcnow)
+    # Corrèle l'entrée d'entrée (ce qui a été entendu) et l'entrée de sortie
+    # (ce que l'agent a répondu) d'un même tour Gemini — cf. GeminiSession.
+    turn_id: str | None = None
 
 
 class ContextStore:
@@ -18,8 +21,9 @@ class ContextStore:
         self._started_at = datetime.utcnow()
 
     def add(self, speaker_id: str, speaker_name: str,
-            text: str, entry_type: str = "participant") -> SpeechEntry:
-        e = SpeechEntry(speaker_id, speaker_name, text, entry_type)
+            text: str, entry_type: str = "participant",
+            turn_id: str | None = None) -> SpeechEntry:
+        e = SpeechEntry(speaker_id, speaker_name, text, entry_type, turn_id=turn_id)
         self.entries.append(e)
         return e
 
@@ -36,12 +40,14 @@ class ContextStore:
                 ts = datetime.fromisoformat(e["occurred_at"])
             except (KeyError, ValueError):
                 ts = datetime.utcnow()
+            extra = e.get("extra") or {}
             seeded.append(SpeechEntry(
                 speaker_id=e.get("speaker_id") or "",
                 speaker_name=e.get("speaker_name", "Inconnu"),
                 text=e.get("text", ""),
                 entry_type=e.get("entry_type", "participant"),
                 timestamp=ts,
+                turn_id=extra.get("turn_id"),
             ))
         self.entries = seeded + self.entries
         return len(seeded)

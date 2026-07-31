@@ -7,9 +7,14 @@ Architecture modulaire LangGraph-ready :
   - Handlers : speaker, log, kafka, moderation — composables et extensibles
   - PeerInstance : orchestre audio + chat + vision
 
-Règle audio fondamentale :
-  _chat_reply_mode == None  → Gemini répond en AUDIO (défaut)
-  _chat_reply_mode == "text" → Gemini répond en CHAT (demande textuelle uniquement)
+Règle audio fondamentale (cf. app/peer/response_policy.py) :
+  Une sollicitation vocale obtient toujours une réponse vocale.
+  Une sollicitation écrite (chat) obtient une réponse écrite par défaut,
+  sauf demande explicite d'une réponse orale.
+
+Transcription : chaque tour Gemini (entrée participant + réponse agent) est
+accumulé et restitué en UNE fois, texte complet, jamais en fragments —
+cf. GeminiSession._accumulate/_flush.
 """
 import asyncio
 import logging
@@ -31,9 +36,11 @@ from app.events.handlers import (
     make_moderation_handler,
 )
 from app.speaker.tracker import SpeakerTracker
+from app.peer.response_policy import ResponseMode, decide_chat_response_mode, parse_keywords
 
 settings = get_settings()
 log = logging.getLogger(__name__)
+ORAL_KEYWORDS = parse_keywords(settings.ORAL_REQUEST_KEYWORDS)
 
 
 class PeerInstance:
@@ -48,9 +55,7 @@ class PeerInstance:
         self.gemini:  GeminiSession  | None = None
         self.browser: CivitasBrowser | None = None
 
-        self._chat_reply_mode: str | None  = None
-        self._chat_reply_buffer: list[str] = []
-        self._chat_flush_task: asyncio.Task | None = None
+        self._response_mode: ResponseMode = ResponseMode.AUDIO
 
         self.tracker = SpeakerTracker(room_id)
         self.bus     = EventBus(room_id)
@@ -166,8 +171,6 @@ class PeerInstance:
         if not self.active:
             return
         self.active = False
-        if self._chat_flush_task:
-            self._chat_flush_task.cancel()
         agent_name = self.context.get("agent_name", "CIVITAS")
         try:
             if self.context.get("behavior_mode") != "silent":
@@ -213,55 +216,51 @@ class PeerInstance:
             await self.gemini.send_audio(pcm)
 
     async def _on_gemini_audio(self, pcm: bytes):
-        if self.pipe and self._chat_reply_mode != "text":
+        if self.pipe and self._response_mode != ResponseMode.TEXT:
             await self.pipe.send_audio(pcm)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Transcription
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def _on_agent_speech(self, text: str):
+    async def _on_agent_speech(self, text: str, turn_id: str | None = None):
         if not text.strip():
             return
         agent_name = self.context.get("agent_name", "CIVITAS")
-        self.store.add("civitas-peer", agent_name, text, "agent")
+        self.store.add("civitas-peer", agent_name, text, "agent", turn_id=turn_id)
         await kafka.publish_transcription(
-            self.room_id, agent_name, text, "agent", speaker_id="civitas-peer"
+            self.room_id, agent_name, text, "agent",
+            speaker_id="civitas-peer",
+            extra={"turn_id": turn_id} if turn_id else None,
         )
-        if self._chat_reply_mode == "text":
-            self._chat_reply_buffer.append(text.strip())
-            if self._chat_flush_task:
-                self._chat_flush_task.cancel()
-            self._chat_flush_task = asyncio.create_task(self._flush_chat_reply())
+        if self._response_mode == ResponseMode.TEXT:
+            # Le texte est déjà complet (accumulé par tour côté GeminiSession) :
+            # plus besoin de bufferiser/débouncer comme avant, on poste
+            # directement — c'était un contournement du fragmentement, résolu
+            # à la source désormais.
+            if self.browser:
+                await self.browser.send_chat(f"{agent_name}: {text.strip()}")
+            self._response_mode = ResponseMode.AUDIO  # retour au mode par défaut
 
-    async def _on_participant_speech(self, text: str):
+    async def _on_participant_speech(self, text: str, turn_id: str | None = None):
         if not text.strip():
             return
         ep_id, name = self.tracker.current_speaker()
         log.info(f"[Peer:{self.room_id}] 🗣 [{name} / {ep_id}]: {text[:100]}")
-        self.store.add(ep_id or "participant", name, text, "participant")
+        self.store.add(ep_id or "participant", name, text, "participant", turn_id=turn_id)
         # Une seule publication (ex-doublon corrigé : publish_transcription()
         # ET ce publish() explicite écrivaient tous les deux sur
         # room.transcriptions pour le même événement).
         await kafka.publish_transcription(
             self.room_id, name, text, "participant",
-            speaker_id=ep_id, extra={"room_snapshot": self.tracker.snapshot()},
+            speaker_id=ep_id,
+            extra={"room_snapshot": self.tracker.snapshot(), "turn_id": turn_id},
         )
         text_lower = text.lower()
         keywords   = self.context.get("invocation_keywords", ["civitas"])
         vision_kw  = ["regarde", "vois", "écran", "capture", "screenshot", "analyse"]
         if any(k in text_lower for k in keywords) and any(v in text_lower for v in vision_kw):
             asyncio.create_task(self._handle_vision(text))
-
-    async def _flush_chat_reply(self):
-        await asyncio.sleep(1.5)
-        if self._chat_reply_buffer and self._chat_reply_mode == "text":
-            reply = " ".join(self._chat_reply_buffer).strip()
-            self._chat_reply_buffer = []
-            self._chat_reply_mode   = None
-            agent_name = self.context.get("agent_name", "CIVITAS")
-            if reply and self.browser:
-                await self.browser.send_chat(f"{agent_name}: {reply}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Chat
@@ -282,22 +281,17 @@ class PeerInstance:
         if any(k in text_lower for k in vision_kw):
             asyncio.create_task(self._handle_vision(text, chat_mode=True))
             return
-        oral_kw = ["oral", "voix", "parle", "dis à voix", "audio"]
-        if any(k in text_lower for k in oral_kw):
-            self._chat_reply_mode   = None
-            self._chat_reply_buffer = []
-            snap = self.tracker.snapshot()
+
+        self._response_mode = decide_chat_response_mode(text, ORAL_KEYWORDS)
+        snap = self.tracker.snapshot()
+
+        if self._response_mode == ResponseMode.AUDIO:
             await self.gemini.send_text(
                 f"Contexte room: {snap['total_participants']} participants.\n"
                 f"{sender} te demande de répondre vocalement: {text}\n"
                 f"Réponds en audio."
             )
         else:
-            self._chat_reply_mode   = "text"
-            self._chat_reply_buffer = []
-            if self._chat_flush_task:
-                self._chat_flush_task.cancel()
-            snap  = self.tracker.snapshot()
             names = [p["display_name"] for p in snap["room_participants"].values()]
             await self.gemini.send_text(
                 f"Contexte room: {snap['total_participants']} participant(s): {', '.join(names)}.\n"
@@ -318,8 +312,7 @@ class PeerInstance:
         if not frame:
             await self.browser.send_chat(f"{agent_name}: Impossible de capturer.")
             return
-        self._chat_reply_mode   = "text"
-        self._chat_reply_buffer = []
+        self._response_mode = ResponseMode.TEXT
         await self.gemini.send_image(frame, "Décris ce que tu vois dans cette réunion Jitsi en français.")
         await kafka.publish_agent_action(self.room_id, "vision_capture", {"triggered_by": original_text})
 

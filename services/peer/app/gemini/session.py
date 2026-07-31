@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from google import genai
 from google.genai import types
 from app.config import get_settings
@@ -37,6 +38,18 @@ class GeminiSession:
         self._task = None
         self._hb_task = None
 
+        # Accumulation par tour — l'API Gemini Live délivre les transcriptions
+        # en fragments successifs (deltas), jamais en un seul bloc. Traiter
+        # chaque fragment comme un message complet fragmenterait l'historique
+        # (une phrase découpée en 3-4 entrées séparées). On accumule donc ici
+        # et on ne restitue le texte QUE lorsque le segment est marqué
+        # `finished` par l'API, avec turn_complete/interrupted comme filet de
+        # sécurité si `finished` n'arrivait pas (comportement d'API preview
+        # pas garanti à 100%).
+        self._input_buf: list[str] = []
+        self._output_buf: list[str] = []
+        self._current_turn_id: str | None = None
+
     async def start(self):
         self._client = genai.Client(
             http_options={"api_version": "v1beta", "timeout": 60},
@@ -73,30 +86,86 @@ class GeminiSession:
                 )
             ),
         )
-        async with self._client.aio.live.connect(
-            model=MODEL, config=config
-        ) as session:
-            self._session = session
-            self._ready.set()
-            self._hb_task = asyncio.create_task(self._heartbeat(session))
+        try:
+            async with self._client.aio.live.connect(
+                model=MODEL, config=config
+            ) as session:
+                self._session = session
+                self._ready.set()
+                self._hb_task = asyncio.create_task(self._heartbeat(session))
 
-            await self._inject_catchup_context(session)
+                await self._inject_catchup_context(session)
 
-            async for response in session.receive():
-                if not self._running:
-                    break
-                if response.data:
-                    await self.on_audio(response.data)
-                if response.server_content:
-                    sc = response.server_content
-                    if sc.output_transcription and sc.output_transcription.text:
-                        await self.on_speech(sc.output_transcription.text)
-                    if sc.input_transcription and sc.input_transcription.text:
-                        await self.on_transcription(sc.input_transcription.text)
+                async for response in session.receive():
+                    if not self._running:
+                        break
+                    if response.data:
+                        await self.on_audio(response.data)
+                    if response.server_content:
+                        sc = response.server_content
 
-        self._session = None
-        if self._hb_task:
-            self._hb_task.cancel()
+                        if sc.input_transcription:
+                            self._accumulate("input", sc.input_transcription.text)
+                            if sc.input_transcription.finished:
+                                await self._flush("input")
+
+                        if sc.output_transcription:
+                            self._accumulate("output", sc.output_transcription.text)
+                            if sc.output_transcription.finished:
+                                await self._flush("output")
+
+                        if sc.turn_complete or sc.interrupted:
+                            # Filet de sécurité : garantit qu'aucun fragment en
+                            # cours n'est perdu même si `finished` n'a pas été
+                            # reçu pour un des deux flux (ex: coupure de parole).
+                            await self._flush("input")
+                            await self._flush("output")
+                            self._end_turn()
+        finally:
+            # try/finally plutôt qu'un simple bloc après le `async with` :
+            # une exception (coupure réseau typiquement) pendant
+            # session.receive() saute sinon tout le code qui suit le `async
+            # with`. Ici, tout fragment déjà reçu mais pas encore `finished`
+            # est quand même restitué — jamais silencieusement perdu.
+            self._session = None
+            if self._hb_task:
+                self._hb_task.cancel()
+            await self._flush("input")
+            await self._flush("output")
+            self._end_turn()
+
+    def _accumulate(self, kind: str, text: str | None) -> None:
+        if not text:
+            return
+        if self._current_turn_id is None:
+            self._current_turn_id = str(uuid.uuid4())
+        buf = self._input_buf if kind == "input" else self._output_buf
+        buf.append(text)
+
+    async def _flush(self, kind: str) -> None:
+        buf = self._input_buf if kind == "input" else self._output_buf
+        if not buf:
+            return
+        complete_text = "".join(buf)
+        buf.clear()
+        turn_id = self._current_turn_id
+        try:
+            if kind == "input":
+                await self.on_transcription(complete_text, turn_id)
+            else:
+                await self.on_speech(complete_text, turn_id)
+        except Exception as e:
+            log.error(f"[Gemini:{self.room_id}] Callback {kind}: {e}")
+        # NB : on ne réinitialise PAS turn_id ici. À ce stade, le flux
+        # "output" n'a souvent pas encore commencé (l'input est transcrit
+        # avant que l'agent ne génère sa réponse) — réinitialiser dès que
+        # les deux buffers sont momentanément vides briserait la corrélation
+        # entrée/sortie d'un même tour. Le reset est piloté explicitement
+        # par turn_complete/interrupted (cf. _end_turn), le seul signal
+        # fiable de "ce tour est réellement terminé".
+
+    def _end_turn(self) -> None:
+        self._current_turn_id = None
 
     async def _inject_catchup_context(self, session):
         """

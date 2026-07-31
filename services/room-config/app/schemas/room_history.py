@@ -7,6 +7,7 @@ class RoomHistoryEntryResponse(BaseModel):
     speaker_name: str
     entry_type: str
     text: str
+    extra: dict | None = None
     occurred_at: datetime
 
     model_config = {"from_attributes": True}
