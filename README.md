@@ -670,8 +670,11 @@ Le certificat est utilisé par :
 
 **Démarrage :** `scripts/boot.sh`
 
-Ordre de démarrage (avec attentes) :
-1. Attente JVB Jitsi prêt (poll `http://localhost:8080/about/health`, max 180s)
+1. **`scripts/jitsi_boot.sh`** — démarre (ou vérifie s'il tourne déjà) le stack Jitsi Meet complet, puis vérifie chaque composant un par un, dans l'ordre réel de dépendance :
+   - Découverte automatique du mode de déploiement : Docker (`docker-jitsi-meet`, cherché dans plusieurs chemins conventionnels, ou `JITSI_COMPOSE_DIR`) ou natif (services systemd `prosody`/`jicofo`/`jitsi-videobridge2`/`nginx`)
+   - Démarrage : `docker compose up -d` ou `systemctl start` selon le mode détecté
+   - Vérifications : Prosody (ports XMPP 5222/5269) → Jicofo (process/conteneur actif) → JVB (poll `http://localhost:8080/about/health`, max 180s) → Web (port 443/80)
+   - Échoue avec un message actionnable si un composant n'est pas trouvable ou ne démarre pas (jamais un simple timeout muet)
 2. Kafka (+ 15s d'attente)
 3. Monitoring (Prometheus, Loki, Promtail, Grafana)
 4. Room Config (+ 5s d'attente)
@@ -679,11 +682,34 @@ Ordre de démarrage (avec attentes) :
 6. Event Bridge
 7. Peer Service
 
+> **Avant :** `boot.sh` attendait passivement que JVB réponde, sans jamais démarrer Jitsi lui-même — si les conteneurs étaient arrêtés, le boot échouait sans indiquer comment les relancer. `jitsi_boot.sh` comble ce trou : il démarre réellement le stack avant de le vérifier.
+
 **Arrêt :** `scripts/stop.sh`
 
-Ordre inverse : Peer → Room Spawner → Event Bridge → Room Config → Monitoring → Kafka
+Ordre inverse : Peer → Room Spawner → Event Bridge → Room Config → Monitoring → Kafka → **`scripts/jitsi_stop.sh`** (Web → JVB → Jicofo → Prosody, ou `docker compose down` selon le mode détecté).
+
+**Variables d'environnement (Jitsi boot/stop)**, toutes optionnelles avec auto-détection par défaut — cf. `scripts/lib/jitsi_common.sh` :
+
+| Variable | Rôle |
+|----------|------|
+| `JITSI_COMPOSE_DIR` | Chemin du `docker-compose.yml` Jitsi, si l'auto-détection ne le trouve pas |
+| `JVB_HEALTH_URL` | URL de health-check JVB (défaut : `http://localhost:8080/about/health`) |
+| `JVB_HEALTH_TIMEOUT` | Délai max d'attente JVB en secondes (défaut : 180) |
+| `CIVITAS_IP` | Force l'IP du serveur si l'auto-détection ne convient pas |
 
 **Chemin de déploiement :** `/opt/civitas/`
+
+---
+
+## 8bis. Provisioning système — `01_system_base.sh`, `01_verify.sh`, `install_civitas_ca.sh`
+
+Scripts de provisioning bas niveau (hors Docker), à la racine du repo :
+
+- **`01_system_base.sh`** — étape 1 : fondations système sur une Debian minimale (utilisateur `civitas`, SSH durci, UFW, fail2ban, Docker, réseau `civitas-net`, dnsmasq pour `*.civitas.local`, certificats mkcert, tuning kernel WebRTC/TCP BBR, fichier `/opt/civitas/config/civitas.env`). **Aucune IP en dur** : l'IP et le sous-réseau du serveur sont détectés dynamiquement (route par défaut vers Internet), avec override possible via `CIVITAS_IP=x.x.x.x` / `CIVITAS_SUBNET=x.x.x.x/24` pour les machines multi-cartes réseau.
+- **`01_verify.sh`** — valide que l'étape 1 s'est bien déroulée (utilisateur, Docker, réseau, dnsmasq, certificats, firewall, limites système).
+- **`install_civitas_ca.sh`** — à exécuter sur chaque machine **cliente** qui doit faire confiance au certificat CIVITAS. Tourne sur une machine différente du serveur : ne peut donc pas auto-détecter l'IP serveur (contrairement à `01_system_base.sh`) — elle doit être fournie explicitement : `sudo bash install_civitas_ca.sh <IP_SERVEUR>` (ou `CIVITAS_SERVER_IP=x.x.x.x`).
+
+> Ce repo (ECO-ROOM) ne gère que les services CIVITAS par-dessus Jitsi — l'installation de Jitsi Meet lui-même (étape 2 : `apt install jitsi-meet` ou `docker-jitsi-meet`) n'est pas incluse ici ; `jitsi_boot.sh`/`jitsi_stop.sh` (§8) supposent Jitsi déjà installé et se contentent de le démarrer/arrêter/vérifier.
 
 ---
 

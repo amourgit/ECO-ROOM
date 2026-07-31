@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
 # CIVITAS PLATFORM — Étape 1 : Fondations système
-# Debian minimale · IP 192.168.1.89 · Qualité production
+# Debian minimale · IP détectée dynamiquement · Qualité production
 #
 # Usage : sudo bash 01_system_base.sh
+# Variables d'environnement optionnelles (si l'auto-détection ne convient
+# pas, par exemple sur une machine multi-cartes réseau) :
+#   CIVITAS_IP       Force l'IP du serveur (défaut : auto-détectée)
+#   CIVITAS_SUBNET   Force le sous-réseau CIDR pour les règles UFW internes
+#                    (défaut : auto-détecté depuis l'interface principale)
 # =============================================================================
 set -euo pipefail
 IFS=$'\n\t'
@@ -20,12 +25,47 @@ die()  { echo -e "${RED}[✗] ERREUR : $*${NC}" >&2; exit 1; }
 # --- Vérifications préalables -------------------------------------------------
 [[ $EUID -eq 0 ]] || die "Ce script doit être exécuté en root (sudo)"
 
-DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive
+
+# --- Détection dynamique de l'IP et du sous-réseau du serveur ---------------
+# Jamais d'IP en dur : détectée via la route par défaut (celle que le noyau
+# utiliserait pour sortir vers Internet), avec override possible via
+# CIVITAS_IP/CIVITAS_SUBNET pour les cas où l'auto-détection ne suffit pas.
+detect_server_ip() {
+    if [[ -n "${CIVITAS_IP:-}" ]]; then
+        echo "$CIVITAS_IP"
+        return 0
+    fi
+    ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}'
+}
+
+detect_server_cidr() {
+    if [[ -n "${CIVITAS_SUBNET:-}" ]]; then
+        echo "$CIVITAS_SUBNET"
+        return 0
+    fi
+    local iface
+    iface=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="dev") print $(i+1)}')
+    [[ -z "$iface" ]] && return 1
+    ip -o -4 addr show dev "$iface" scope global 2>/dev/null | awk '{print $4}' | head -1
+}
+
+SERVER_IP="$(detect_server_ip)"
+[[ -n "$SERVER_IP" ]] || die "Impossible de détecter l'IP du serveur automatiquement. Relancer avec : CIVITAS_IP=x.x.x.x sudo -E bash 01_system_base.sh"
+
+SERVER_CIDR="$(detect_server_cidr)"
+[[ -n "$SERVER_CIDR" ]] || die "Impossible de détecter le sous-réseau du serveur automatiquement. Relancer avec : CIVITAS_SUBNET=x.x.x.x/24 sudo -E bash 01_system_base.sh"
 
 info "============================================================"
 info " CIVITAS PLATFORM — Fondations système"
 info " Debian minimale · $(date '+%Y-%m-%d %H:%M')"
 info "============================================================"
+info " IP serveur détectée     : $SERVER_IP"
+info " Sous-réseau détecté     : $SERVER_CIDR"
+info "============================================================"
+warn "Si l'une de ces valeurs est incorrecte, interrompre (Ctrl+C) et relancer avec :"
+warn "  CIVITAS_IP=x.x.x.x CIVITAS_SUBNET=x.x.x.x/24 sudo -E bash 01_system_base.sh"
+sleep 5
 
 # =============================================================================
 # 1. MISE À JOUR DU SYSTÈME
@@ -122,14 +162,14 @@ ufw allow 5349/udp  comment "TURNS TLS UDP"
 ufw allow 49152:65535/udp comment "TURN relay range"
 
 # Kafka (interne uniquement)
-ufw allow from 192.168.1.0/24 to any port 9092  comment "Kafka interne"
-ufw allow from 192.168.1.0/24 to any port 9093  comment "Kafka controller"
+ufw allow from "$SERVER_CIDR" to any port 9092  comment "Kafka interne"
+ufw allow from "$SERVER_CIDR" to any port 9093  comment "Kafka controller"
 
 # Grafana (interne uniquement)
-ufw allow from 192.168.1.0/24 to any port 3000  comment "Grafana interne"
+ufw allow from "$SERVER_CIDR" to any port 3000  comment "Grafana interne"
 
 # Kafka UI (interne uniquement)
-ufw allow from 192.168.1.0/24 to any port 8080  comment "Kafka UI interne"
+ufw allow from "$SERVER_CIDR" to any port 8080  comment "Kafka UI interne"
 
 # Prosody XMPP (interne)
 ufw allow from 127.0.0.1 to any port 5222 comment "XMPP client local"
@@ -254,12 +294,12 @@ no-hosts
 local=/civitas.local/
 
 # Entrées DNS civitas.local
-address=/meet.civitas.local/192.168.1.89
-address=/civitas.local/192.168.1.89
-address=/kafka.civitas.local/192.168.1.89
-address=/grafana.civitas.local/192.168.1.89
-address=/kafka-ui.civitas.local/192.168.1.89
-address=/jibri.civitas.local/192.168.1.89
+address=/meet.civitas.local/$SERVER_IP
+address=/civitas.local/$SERVER_IP
+address=/kafka.civitas.local/$SERVER_IP
+address=/grafana.civitas.local/$SERVER_IP
+address=/kafka-ui.civitas.local/$SERVER_IP
+address=/jibri.civitas.local/$SERVER_IP
 
 # Upstream DNS (Cloudflare + Google fallback)
 server=1.1.1.1
@@ -292,7 +332,7 @@ log "dnsmasq configuré"
 # Test résolution
 sleep 1
 if host meet.civitas.local 127.0.0.1 &>/dev/null; then
-    log "DNS meet.civitas.local → 192.168.1.89 ✓"
+    log "DNS meet.civitas.local → $SERVER_IP ✓"
 else
     warn "DNS test échoué — vérifier dnsmasq"
 fi
@@ -333,7 +373,7 @@ mkcert \
     "kafka.civitas.local" \
     "grafana.civitas.local" \
     "kafka-ui.civitas.local" \
-    "192.168.1.89" \
+    "$SERVER_IP" \
     "localhost" \
     "127.0.0.1"
 
@@ -414,7 +454,8 @@ cat > /opt/civitas/config/civitas.env <<EOF
 
 # Réseau
 CIVITAS_DOMAIN=civitas.local
-CIVITAS_IP=192.168.1.89
+CIVITAS_IP=$SERVER_IP
+CIVITAS_SUBNET=$SERVER_CIDR
 
 # Domaines
 JITSI_DOMAIN=meet.civitas.local
@@ -436,6 +477,10 @@ JITSI_HTTP_PORT=80
 JITSI_HTTPS_PORT=443
 JVB_PORT=10000
 COTURN_PORT=3478
+# Listener PLAINTEXT externe uniquement (clients hors réseau Docker).
+# Les services CIVITAS internes (peer, room-spawner, room-config) utilisent
+# TOUJOURS civitas-kafka:9094 (listener INTERNAL), jamais cette IP/port —
+# cf. kafka/docker-compose.yml et README.md § Kafka.
 KAFKA_PORT=9092
 GRAFANA_PORT=3000
 KAFKA_UI_PORT=8080
@@ -461,19 +506,20 @@ echo -e "  ${GREEN}✓${NC} Firewall UFW configuré"
 echo -e "  ${GREEN}✓${NC} fail2ban actif (ban 24h après 3 échecs SSH)"
 echo -e "  ${GREEN}✓${NC} Docker installé et configuré (production)"
 echo -e "  ${GREEN}✓${NC} Réseau Docker civitas-net (172.20.0.0/16)"
-echo -e "  ${GREEN}✓${NC} dnsmasq — civitas.local résolu sur 192.168.1.89"
+echo -e "  ${GREEN}✓${NC} dnsmasq — civitas.local résolu sur $SERVER_IP"
 echo -e "  ${GREEN}✓${NC} mkcert — CA interne + certificats wildcard *.civitas.local"
 echo -e "  ${GREEN}✓${NC} Kernel optimisé (WebRTC, TCP BBR)"
 echo -e "  ${GREEN}✓${NC} /opt/civitas/config/civitas.env"
 echo ""
 echo -e "${YELLOW}  ACTION REQUISE :${NC}"
 echo -e "  Sur chaque machine cliente du réseau, ajouter dans /etc/hosts :"
-echo -e "  ${BOLD}192.168.1.89  meet.civitas.local civitas.local${NC}"
+echo -e "  ${BOLD}$SERVER_IP  meet.civitas.local civitas.local${NC}"
 echo -e ""
-echo -e "  Ou configurer le DNS du routeur sur 192.168.1.89"
+echo -e "  Ou configurer le DNS du routeur sur $SERVER_IP"
 echo -e ""
 echo -e "  Installer la CA sur les clients :"
-echo -e "  ${BOLD}scp civitas@192.168.1.89:/opt/civitas/certs/ca/rootCA.pem .${NC}"
+echo -e "  ${BOLD}scp civitas@$SERVER_IP:/opt/civitas/certs/ca/rootCA.pem .${NC}"
+echo -e "  ${BOLD}sudo bash install_civitas_ca.sh $SERVER_IP${NC}  (cf. script fourni)"
 echo -e ""
 echo -e "${BLUE}  Prêt pour l'étape 2 : Jitsi Meet${NC}"
 echo ""

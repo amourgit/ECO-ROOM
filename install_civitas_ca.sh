@@ -3,16 +3,30 @@
 # CIVITAS — Installation CA interne sur machine cliente
 # À exécuter sur chaque poste qui accède à meet.civitas.local
 #
-# Usage : sudo bash install_civitas_ca.sh
+# Ce script tourne sur la machine CLIENTE (pas sur le serveur CIVITAS) : il
+# ne peut donc pas auto-détecter l'IP du serveur (contrairement à
+# 01_system_base.sh, qui lui tourne sur le serveur et détecte sa propre IP).
+# L'IP doit être fournie explicitement — jamais supposée.
+#
+# Usage :
+#   sudo bash install_civitas_ca.sh <IP_SERVEUR>
+#   CIVITAS_SERVER_IP=x.x.x.x sudo -E bash install_civitas_ca.sh
 # =============================================================================
 set -euo pipefail
-
-SERVER_IP="192.168.1.89"
-CA_URL="http://${SERVER_IP}/civitas-ca.crt"
 
 log()  { echo -e "\033[0;32m[✓]\033[0m $*"; }
 info() { echo -e "\033[0;34m[→]\033[0m $*"; }
 die()  { echo -e "\033[0;31m[✗]\033[0m $*" >&2; exit 1; }
+
+SERVER_IP="${1:-${CIVITAS_SERVER_IP:-}}"
+if [[ -z "$SERVER_IP" ]]; then
+    die "IP du serveur CIVITAS requise.
+  Usage : sudo bash install_civitas_ca.sh <IP_SERVEUR>
+  (ou)   CIVITAS_SERVER_IP=x.x.x.x sudo -E bash install_civitas_ca.sh
+
+  L'IP du serveur est affichée à la fin de 01_system_base.sh (section
+  'ACTION REQUISE'), ou récupérable via : cat /opt/civitas/config/civitas.env | grep CIVITAS_IP"
+fi
 
 [[ $EUID -eq 0 ]] || die "Exécuter en root"
 

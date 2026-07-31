@@ -7,25 +7,15 @@ log() {
 
 log "Démarrage Civitas..."
 
-# Laisser le temps à Jitsi de s'initialiser
-sleep 20
-
-# Attendre que le JVB soit opérationnel
-log "Attente JVB..."
-MAX=180
-COUNT=0
-while [ $COUNT -lt $MAX ]; do
-    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/about/health 2>/dev/null)
-    if [ "$STATUS" = "200" ]; then
-        log "JVB prêt ✓"
-        break
-    fi
-    sleep 5
-    COUNT=$((COUNT + 5))
-done
-
-if [ $COUNT -ge $MAX ]; then
-    log "ERREUR: JVB non disponible après ${MAX}s"
+# Démarre (ou vérifie s'il tourne déjà) le stack Jitsi complet — Prosody,
+# Jicofo, JVB, Web — puis vérifie chaque composant un par un. Avant, ce
+# script se contentait d'attendre passivement que JVB réponde, sans jamais
+# démarrer Jitsi lui-même ; si les conteneurs étaient H.S., le boot échouait
+# sans indiquer comment les redémarrer. Voir scripts/jitsi_boot.sh.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+log "Démarrage/vérification du stack Jitsi..."
+if ! bash "$SCRIPT_DIR/jitsi_boot.sh"; then
+    log "ERREUR: le stack Jitsi n'est pas opérationnel (voir messages ci-dessus)"
     exit 1
 fi
 
