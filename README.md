@@ -3,6 +3,11 @@
 > **Plateforme de réunion intelligente avec agent IA intégré**  
 > Stack : Jitsi Meet · Kafka · Gemini Live · Playwright · FastAPI · PostgreSQL · Grafana
 
+> ⚠️ **Chantier en cours :** la synchronisation entre les rooms CIVITAS
+> (`room_configs`) et les rooms Jitsi réelles n'est pas garantie à ce jour
+> — voir [`PLAN_SYNCHRONISATION_ROOMS_JITSI.md`](./PLAN_SYNCHRONISATION_ROOMS_JITSI.md)
+> pour le diagnostic complet et le plan de correction phasé.
+
 ---
 
 ## Table des matières
