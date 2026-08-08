@@ -1,7 +1,7 @@
 # Plan de correction — Synchronisation rooms CIVITAS ↔ Jitsi
 
-**Statut global :** 🔴 Analyse terminée — en attente de validation avant implémentation
-**Dernière mise à jour :** 2026-07-31
+**Statut global :** 🟡 En cours — corrections de cohérence appliquées, containerisation Jitsi livrée (non déployée), Phases 1-5 du §5 toujours en attente de ton feu vert détaillé
+**Dernière mise à jour :** 2026-08-07
 **Portée :** `services/room-config`, `services/room-spawner`, `event-bridge`, (futur) interface de gestion des rooms
 
 > Ce document est fait pour être mis à jour au fil des sessions : cocher les
@@ -94,19 +94,21 @@ c'est un symptôme du même mal : deux bouts de code qui parlent de la même
 donnée sans contrat partagé explicite. Inclus dans le plan (Phase 5) parce
 qu'il touche le même fichier et la même logique de "state du manager".
 
-### 2.4 — Signal d'une intégration commencée puis abandonnée
+### 2.4 — ✅ Traité : signal d'une intégration commencée puis abandonnée
 
-`event-bridge/main.py` déclare `JICOFO_API = "http://192.168.1.89:8888"`
-(ligne 22) — jamais utilisée nulle part dans le fichier. Ça suggère qu'une
-intégration directe avec Jicofo (health check et/ou administration) a été
-prévue puis jamais branchée. À vérifier en Phase 0 : est-ce que Jicofo
-expose quoi que ce soit d'exploitable sur ce port dans le déploiement
-actuel (Jicofo expose par défaut un endpoint de santé/stats en HTTP sur les
-installations récentes ; je n'ai pas la certitude qu'il expose une réelle
-API de création/réservation de room sans vérifier la configuration
-effective de ton Jicofo). Cette même IP en dur devra de toute façon être
-corrigée (même classe de bug que celle déjà traitée dans les scripts
-système).
+`event-bridge/main.py` déclarait `JICOFO_API = "http://192.168.1.89:8888"` —
+jamais utilisée nulle part dans le fichier. En creusant le
+`docker-compose.yml` officiel de `jitsi/docker-jitsi-meet` (cf. §7), la
+raison apparaît clairement : Jicofo publie son port 8888 en
+`127.0.0.1:8888:8888` — **bindé sur le loopback de l'hôte uniquement**,
+jamais joignable via l'IP LAN du serveur. Cette variable n'aurait donc
+jamais pu fonctionner telle quelle, même utilisée. Supprimée (cf. journal).
+Elle deviendra effectivement joignable une fois Jitsi containerisé (§7) —
+un conteneur attaché au réseau `meet.jitsi` peut atteindre `jicofo:8888`
+en interne, indépendamment de son binding sur l'hôte — mais rien n'indique
+que Jicofo expose une réelle API de création/réservation de room au-delà
+de la santé/stats (`/about/health`, `/stats`) : à vérifier concrètement une
+fois le conteneur en place, avant de bâtir quoi que ce soit dessus.
 
 ### 2.5 — Inconnue à lever avant de coder quoi que ce soit
 
@@ -285,8 +287,114 @@ Changement de schéma envisagé (`room_configs`) :
 
 ---
 
+## 7. Containerisation Jitsi — livré, non déployé
+
+Confirmé par toi : Jitsi tourne aujourd'hui en installation native (hors
+Docker) sur le serveur. C'est cohérent avec la conception de
+`jitsi_boot.sh`/`jitsi_stop.sh` (§8 du README), qui supportait déjà les
+deux modes (Docker et systemd) précisément pour cette raison.
+
+### 7.1 — Ce qui a été livré
+
+- **`jitsi/docker-compose.yml`** — *vendored* depuis le projet officiel
+  [`jitsi/docker-jitsi-meet`](https://github.com/jitsi/docker-jitsi-meet)
+  (web, prosody, jicofo, jvb), **quasiment tel quel**. Une seule
+  modification volontaire, marquée explicitement dans le fichier
+  ("AJOUT CIVITAS") : un alias réseau `meet.civitas.local` sur le service
+  `web`, attaché à `civitas-net` (réseau externe, créé par CIVITAS —
+  jamais par ce fichier), pour que `peer` puisse le résoudre nativement via
+  le DNS Docker le jour de la bascule. Rien d'autre n'est modifié —
+  Jitsi reste la base intacte, CIVITAS s'y raccroche de l'extérieur.
+- **`jitsi/.env.example`** — adapté du modèle officiel : domaine et ports
+  déjà en place (`meet.civitas.local`, 80/443/10000), stockage hors repo
+  (`/opt/civitas/jitsi/data`), image `stable` fixée ici plutôt que dans le
+  compose vendored (pour ne garder qu'une seule modification dans ce
+  dernier), mots de passe jamais committés.
+- **`jitsi/gen-passwords.sh`** — vendored tel quel depuis l'officiel.
+- **`jitsi_boot.sh`/`jitsi_stop.sh` (§8 README)** : **aucune modification
+  nécessaire**. `scripts/lib/jitsi_common.sh` vérifiait déjà
+  `/opt/civitas/jitsi` parmi ses chemins candidats — le jour où
+  `jitsi/docker-compose.yml` est déployé à cet emplacement, la découverte
+  bascule automatiquement en mode Docker.
+
+### 7.2 — Deux points nécessitant une action manuelle de ta part (je n'ai pas la source)
+
+**a) Certificats TLS** — vérifié dans le code source du conteneur `web`
+officiel : s'il trouve `cert.crt`/`cert.key` dans `${CONFIG}/web/keys/`, il
+les utilise ; sinon il en génère un self-signed que les clients
+n'approuveraient pas. Pour réutiliser le certificat mkcert déjà déployé et
+approuvé sur les postes clients (`install_civitas_ca.sh`) :
+```bash
+mkdir -p /opt/civitas/jitsi/data/web/keys
+cp /opt/civitas/certs/civitas.local.crt /opt/civitas/jitsi/data/web/keys/cert.crt
+cp /opt/civitas/certs/civitas.local.key /opt/civitas/jitsi/data/web/keys/cert.key
+```
+
+**b) Plugin Prosody du webhook vers event-bridge** — `event-bridge`
+reçoit aujourd'hui de vrais webhooks Prosody (`POST /webhook`), donc un
+module Prosody personnalisé est déjà actif sur l'installation native
+actuelle. **Je n'ai pas accès à son code source** (il n'est pas versionné
+dans ce repo) — je ne peux donc pas le porter à ta place, et je ne veux
+pas en fabriquer un nouveau à l'aveugle en devinant sa logique. Le
+conteneur `prosody` officiel prévoit exactement cet usage via un point
+d'extension monté en volume :
+```bash
+# Localiser le module actif sur l'installation native (chemin typique,
+# à confirmer chez toi) :
+ls /etc/prosody/prosody-plugins-custom/ 2>/dev/null || find / -iname "*webhook*" -path "*prosody*" 2>/dev/null
+
+# Une fois trouvé, le copier vers l'emplacement monté par le conteneur :
+mkdir -p /opt/civitas/jitsi/data/prosody/prosody-plugins-custom
+cp <module trouvé> /opt/civitas/jitsi/data/prosody/prosody-plugins-custom/
+```
+Le module devra pointer vers `http://event-bridge:8100/webhook` (DNS
+Docker, une fois `event-bridge` attaché à `meet.jitsi` — cf. 7.3) au lieu
+de son URL actuelle.
+
+### 7.3 — Procédure de bascule (à exécuter quand tu es prêt — rien d'automatique)
+
+Je n'ai **pas** modifié `event-bridge/docker-compose.yml` ni
+`services/peer/docker-compose.yml` pour les attacher à `meet.jitsi` : ce
+réseau n'existe pas tant que `jitsi/docker-compose.yml` n'a jamais tourné,
+et un `docker compose up` référençant un réseau externe inexistant échoue
+immédiatement — ça aurait cassé ton déploiement natif actuel dès le
+prochain `boot.sh`. La bascule reste donc une opération volontaire, phasée :
+
+- [ ] `cd jitsi && cp .env.example .env && ./gen-passwords.sh`
+- [ ] Copier les certificats (7.2a) et le plugin Prosody (7.2b)
+- [ ] `docker compose -f jitsi/docker-compose.yml up -d` — tester en
+      parallèle de l'installation native (ports différents le temps du
+      test, ou fenêtre de maintenance)
+- [ ] Vérifier avec `jitsi_boot.sh` (bascule automatiquement en mode Docker
+      dès que `/opt/civitas/jitsi/docker-compose.yml` existe)
+- [ ] Ajouter `meet.jitsi: external: true` au réseau de
+      `event-bridge/docker-compose.yml` et `services/peer/docker-compose.yml`
+      (webhook Prosody -> event-bridge, et navigation Playwright -> `web`
+      via l'alias `meet.civitas.local`)
+- [ ] Une fois validé : arrêter et désinstaller les paquets natifs
+      (`prosody`, `jicofo`, `jitsi-videobridge2`, `nginx` — géré par
+      `jitsi_stop.sh` en mode systemd)
+- [ ] Retirer `extra_hosts` de `services/peer/docker-compose.yml` (devenu
+      inutile, résolution via l'alias Docker désormais)
+
+---
+
 ## Journal des mises à jour
 
 - **2026-07-31** — Diagnostic initial complet, plan phasé créé. Aucun code
   modifié à ce stade — en attente de validation du diagnostic et des
   réponses au §6 avant de démarrer la Phase 0.
+- **2026-08-07** — Diagnostic et philosophie validés par toi. Deux chantiers
+  distincts lancés en parallèle du plan Phases 1-5 (toujours en attente) :
+  - Cohérence des variables d'environnement : suppression de toutes les IP
+    en dur restantes trouvées (`JICOFO_API` event-bridge, listener Kafka
+    externe, `extra_hosts` peer, cible Prometheus jitsi-videobridge,
+    `config/civitas.env` tracké) au profit d'une résolution dynamique
+    unique via `config/civitas.env`, exportée par `boot.sh` avant tout
+    `docker compose`. `event-bridge` aligné sur le pattern
+    pydantic-settings + `.env` déjà en place partout ailleurs.
+  - Containerisation Jitsi (§7) : `jitsi/docker-compose.yml` vendored
+    depuis l'officiel + adaptation CIVITAS, livré mais **non déployé** —
+    bascule volontaire, procédure documentée en 7.3, deux étapes
+    nécessitant une action manuelle (certificats, plugin Prosody existant
+    que je n'ai pas pu porter faute d'accès à son code source).

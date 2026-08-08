@@ -4,22 +4,20 @@ Reçoit les webhooks Prosody et publie sur Kafka avec enrichissement complet.
 """
 import json
 import logging
-import httpx
-import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI, Request, HTTPException
 from aiokafka import AIOKafkaProducer
 
+from config import get_settings
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-8s %(message)s",
 )
 log = logging.getLogger(__name__)
-
-KAFKA_BOOTSTRAP = "civitas-kafka:9094"
-JICOFO_API = "http://192.168.1.89:8888"
+settings = get_settings()
 
 # Routing des events vers les bons topics
 TOPIC_MAP = {
@@ -42,12 +40,12 @@ producer: AIOKafkaProducer = None
 async def lifespan(app: FastAPI):
     global producer
     producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP,
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP,
         value_serializer=lambda v: json.dumps(v).encode(),
         key_serializer=lambda k: k.encode() if k else None,
     )
     await producer.start()
-    log.info("Kafka connecté ✓")
+    log.info(f"Kafka connecté ✓ ({settings.KAFKA_BOOTSTRAP})")
     yield
     await producer.stop()
 
@@ -211,5 +209,5 @@ async def health():
         "version": "2.0.0",
         "status": "ok",
         "active_rooms": len(_room_state),
-        "kafka": KAFKA_BOOTSTRAP,
+        "kafka": settings.KAFKA_BOOTSTRAP,
     }

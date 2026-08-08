@@ -7,7 +7,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://192.168.1.89:9092,INTERNAL://civitas-kafka:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${CIVITAS_IP}:9092,INTERNAL://civitas-kafka:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@civitas-kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
@@ -27,9 +27,9 @@ services:
       - civitas-net
     healthcheck:
       # IMPORTANT : ne jamais utiliser localhost:9092 (listener PLAINTEXT) ici.
-      # Ce listener est annoncé (KAFKA_ADVERTISED_LISTENERS) sur 192.168.1.89:9092.
+      # Ce listener est annoncé (KAFKA_ADVERTISED_LISTENERS) sur ${CIVITAS_IP}:9092.
       # kafka-topics se connecte d'abord en local, reçoit les métadonnées du broker,
-      # puis retente sa requête sur l'adresse annoncée -> 192.168.1.89 n'est pas
+      # puis retente sa requête sur l'adresse annoncée -> cette adresse n'est pas
       # forcément joignable en boucle depuis le conteneur (hairpin NAT non garanti
       # sur les réseaux bridge Docker) -> la commande reste bloquée puis expire.
       # On utilise donc le listener INTERNAL, prévu pour la communication

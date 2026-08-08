@@ -714,7 +714,36 @@ Scripts de provisioning bas niveau (hors Docker), à la racine du repo :
 - **`01_verify.sh`** — valide que l'étape 1 s'est bien déroulée (utilisateur, Docker, réseau, dnsmasq, certificats, firewall, limites système).
 - **`install_civitas_ca.sh`** — à exécuter sur chaque machine **cliente** qui doit faire confiance au certificat CIVITAS. Tourne sur une machine différente du serveur : ne peut donc pas auto-détecter l'IP serveur (contrairement à `01_system_base.sh`) — elle doit être fournie explicitement : `sudo bash install_civitas_ca.sh <IP_SERVEUR>` (ou `CIVITAS_SERVER_IP=x.x.x.x`).
 
-> Ce repo (ECO-ROOM) ne gère que les services CIVITAS par-dessus Jitsi — l'installation de Jitsi Meet lui-même (étape 2 : `apt install jitsi-meet` ou `docker-jitsi-meet`) n'est pas incluse ici ; `jitsi_boot.sh`/`jitsi_stop.sh` (§8) supposent Jitsi déjà installé et se contentent de le démarrer/arrêter/vérifier.
+> Ce repo (ECO-ROOM) gère les services CIVITAS par-dessus Jitsi. Jitsi
+> Meet lui-même peut tourner en natif (paquets Debian) ou en Docker
+> (`jitsi/docker-compose.yml`, cf. §8ter) — `jitsi_boot.sh`/`jitsi_stop.sh`
+> (§8) détectent automatiquement lequel des deux est en place.
+
+---
+
+## 8ter. Stack Jitsi Meet — `jitsi/docker-compose.yml`
+
+Déploiement Docker optionnel du stack Jitsi Meet (web, prosody, jicofo,
+jvb), *vendored* depuis le projet officiel
+[`jitsi/docker-jitsi-meet`](https://github.com/jitsi/docker-jitsi-meet)
+quasiment tel quel — une seule modification volontaire, marquée
+explicitement dans le fichier (alias réseau `meet.civitas.local` sur le
+service `web`, attaché à `civitas-net`, pour que `peer` le résolve nativement
+sans IP en dur ni `extra_hosts`).
+
+**État :** livré, **non déployé** — la bascule depuis l'installation native
+actuelle est une opération volontaire et phasée, jamais automatique.
+Procédure complète (certificats, migration du plugin Prosody existant,
+checklist de bascule) : [`PLAN_SYNCHRONISATION_ROOMS_JITSI.md`](./PLAN_SYNCHRONISATION_ROOMS_JITSI.md) §7.
+
+```bash
+cd jitsi && cp .env.example .env && ./gen-passwords.sh
+docker compose up -d
+```
+
+`jitsi_boot.sh` (§8) bascule automatiquement en mode Docker dès que
+`/opt/civitas/jitsi/docker-compose.yml` existe — aucune configuration
+supplémentaire nécessaire de ce côté.
 
 ---
 

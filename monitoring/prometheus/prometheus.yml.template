@@ -2,6 +2,12 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# NOTE : ce fichier est un TEMPLATE, jamais lu directement par Prometheus.
+# scripts/boot.sh génère monitoring/prometheus/prometheus.yml (gitignored)
+# à partir de celui-ci via envsubst, en résolvant la variable d'IP serveur
+# depuis /opt/civitas/config/civitas.env — Prometheus ne supportant pas
+# nativement l'interpolation de variables d'environnement dans sa config YAML.
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
@@ -9,7 +15,7 @@ scrape_configs:
 
   - job_name: 'jitsi-videobridge'
     static_configs:
-      - targets: ['192.168.1.89:9100']
+      - targets: ['${CIVITAS_IP}:9100']
     metrics_path: '/metrics'
 
   - job_name: 'node-exporter'
