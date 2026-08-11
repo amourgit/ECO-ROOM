@@ -7,6 +7,27 @@ log() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_ROOT/config/civitas.env"
+
+# Vérifier que l'environnement global Civitas existe
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERREUR: $ENV_FILE introuvable"
+    echo "Exécuter 01_system_base.sh d'abord."
+    exit 1
+fi
+
+# Charger et exporter les variables globales Civitas
+set -a
+source "$ENV_FILE"
+set +a
+
+# Variables réseau obligatoires
+: "${CIVITAS_IP:?ERREUR: CIVITAS_IP absent de $ENV_FILE}"
+: "${CIVITAS_SUBNET:?ERREUR: CIVITAS_SUBNET absent de $ENV_FILE}"
+
+log "Variables globales chargées"
+log "  CIVITAS_IP=${CIVITAS_IP}"
+log "  CIVITAS_SUBNET=${CIVITAS_SUBNET}"
 
 # Liste des microservices à builder
 declare -A SERVICES

@@ -1,0 +1,17 @@
+server {
+    listen 80;
+    server_name meet.civitas.local;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name meet.civitas.local;
+
+    ssl_certificate     /opt/civitas/certs/civitas.local.crt;
+    ssl_certificate_key /opt/civitas/certs/civitas.local.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    include /etc/nginx/sites-available/meet.civitas.local.bak;
+}

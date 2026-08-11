@@ -47,7 +47,7 @@ detect_server_iface() {
     ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="dev") print $(i+1)}'
 }
 
-# Sous-réseau CIDR de l'interface principale (ex: 192.168.1.89/24) — utilisé
+# Sous-réseau CIDR de l'interface principale (ex: <IP_SERVEUR>/24) — utilisé
 # pour les règles UFW "accès interne uniquement", jamais un /24 supposé en dur.
 detect_server_cidr() {
     if [[ -n "${CIVITAS_SUBNET:-}" ]]; then

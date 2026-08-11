@@ -130,19 +130,25 @@ container_running() {
     docker ps --filter "name=$1" --filter "status=running" --format '{{.Names}}' 2>/dev/null | grep -q .
 }
 
-# --- Prosody : ports XMPP c2s (5222) et s2s (5269) ---
-if port_listening 5222; then
-    log "Prosody : port 5222 (c2s) à l'écoute"
-else
-    err "Prosody : port 5222 (c2s) injoignable"
-    FAILED=1
-fi
-
-if port_listening 5269; then
-    log "Prosody : port 5269 (s2s) à l'écoute"
-else
-    warn "Prosody : port 5269 (s2s) injoignable (souvent normal si un seul nœud Prosody)"
-fi
+# --- Prosody : conteneur/service actif ---
+case "$JITSI_MODE" in
+docker)
+    if container_running "prosody"; then
+        log "Prosody : conteneur actif"
+    else
+        err "Prosody : aucun conteneur actif trouvé (filtré sur le nom 'prosody')"
+        FAILED=1
+    fi
+    ;;
+systemd)
+    if systemctl is-active --quiet prosody; then
+        log "Prosody : service actif"
+    else
+        err "Prosody : service inactif — journalctl -u prosody -n 100 --no-pager"
+        FAILED=1
+    fi
+    ;;
+esac
 
 # --- Jicofo : process/conteneur actif ---
 case "$JITSI_MODE" in

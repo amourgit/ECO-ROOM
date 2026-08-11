@@ -26,9 +26,9 @@ services:
         tmpfs:
             - /run:size=16M,mode=1750,exec
             - /tmp:size=16M,mode=1777,noexec
-        ports:
-            - '${HTTP_PORT}:8000'
-            - '${HTTPS_PORT}:8443'
+        expose:
+          - '8000'
+          - '8443'
         volumes:
             - ${CONFIG}/web:/config:Z
             - ${CONFIG}/storage/web:/storage:Z
@@ -225,6 +225,26 @@ services:
                     - meet.civitas.local
         depends_on:
             - jvb
+
+    nginx:
+      build:
+        context: ../nginx
+      container_name: civitas-nginx
+      restart: unless-stopped
+
+      ports:
+        - "80:80"
+        - "443:443"
+
+      volumes:
+        - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        - ../nginx/conf.d:/etc/nginx/conf.d:ro
+        - ../certs/civitas.local.crt:/etc/ssl/meet.civitas.local.crt:ro
+        - ../certs/civitas.local.key:/etc/ssl/meet.civitas.local.key:ro
+
+      networks:
+        - civitas-net
+        - default
 
     # XMPP server
     prosody:
