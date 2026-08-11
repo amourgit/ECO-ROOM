@@ -311,11 +311,13 @@ deux modes (Docker et systemd) précisément pour cette raison.
   compose vendored (pour ne garder qu'une seule modification dans ce
   dernier), mots de passe jamais committés.
 - **`jitsi/gen-passwords.sh`** — vendored tel quel depuis l'officiel.
-- **`jitsi_boot.sh`/`jitsi_stop.sh` (§8 README)** : **aucune modification
-  nécessaire**. `scripts/lib/jitsi_common.sh` vérifiait déjà
-  `/opt/civitas/jitsi` parmi ses chemins candidats — le jour où
-  `jitsi/docker-compose.yml` est déployé à cet emplacement, la découverte
-  bascule automatiquement en mode Docker.
+- **`jitsi_boot.sh`/`jitsi_stop.sh` (§8 README)** : découverte automatique
+  déjà en place (`scripts/lib/jitsi_common.sh` vérifiait déjà
+  `/opt/civitas/jitsi` parmi ses chemins candidats). **Complété le
+  2026-08-12** (cf. §7.4) : préparation automatique des répertoires
+  `${CONFIG}/storage` et `${CONFIG}/tmp` avant le premier démarrage, et
+  vérification TCP réelle du port XMPP Prosody (5222) plutôt qu'un simple
+  "conteneur actif" — voir §7.4 pour le pourquoi.
 
 ### 7.2 — Deux points nécessitant une action manuelle de ta part (je n'ai pas la source)
 
@@ -362,11 +364,15 @@ prochain `boot.sh`. La bascule reste donc une opération volontaire, phasée :
 
 - [ ] `cd jitsi && cp .env.example .env && ./gen-passwords.sh`
 - [ ] Copier les certificats (7.2a) et le plugin Prosody (7.2b)
-- [ ] `docker compose -f jitsi/docker-compose.yml up -d` — tester en
-      parallèle de l'installation native (ports différents le temps du
-      test, ou fenêtre de maintenance)
-- [ ] Vérifier avec `jitsi_boot.sh` (bascule automatiquement en mode Docker
-      dès que `/opt/civitas/jitsi/docker-compose.yml` existe)
+- [ ] Démarrer via `sudo bash scripts/jitsi_boot.sh` plutôt qu'un
+      `docker compose up -d` manuel : depuis le 2026-08-12 (cf. §7.4) le
+      script prépare seul `${CONFIG}/storage` et `${CONFIG}/tmp` avec les
+      permissions attendues par les conteneurs rootless, **avant** le tout
+      premier démarrage — sans quoi Prosody peut refuser de démarrer. Le
+      script vérifie ensuite chaque composant, y compris une connexion TCP
+      réelle sur le port XMPP (5222), avant de conclure au succès. Tester
+      en parallèle de l'installation native (ports différents le temps du
+      test, ou fenêtre de maintenance).
 - [ ] Ajouter `meet.jitsi: external: true` au réseau de
       `event-bridge/docker-compose.yml` et `services/peer/docker-compose.yml`
       (webhook Prosody -> event-bridge, et navigation Playwright -> `web`
@@ -376,6 +382,65 @@ prochain `boot.sh`. La bascule reste donc une opération volontaire, phasée :
       `jitsi_stop.sh` en mode systemd)
 - [ ] Retirer `extra_hosts` de `services/peer/docker-compose.yml` (devenu
       inutile, résolution via l'alias Docker désormais)
+
+### 7.4 — Diagnostic XMPP Prosody/Jicofo/JVB et correctifs (2026-08-12)
+
+Un test réel de `docker compose up -d` sur `jitsi/` (première tentative de
+bascule) a produit un rapport de diagnostic détaillé sur la communication
+XMPP entre Prosody, Jicofo et JVB. Vérification, point par point, contre le
+dépôt et la doc officielle (`jitsi.github.io/handbook`) :
+
+**Confirmé exact** — noms de domaines XMPP (`xmpp.meet.jitsi`,
+`auth.meet.jitsi`, `muc.meet.jitsi`, `internal-muc.meet.jitsi`), résolution
+DNS Docker, cohérence des secrets `JICOFO_AUTH_PASSWORD`/`JVB_AUTH_PASSWORD`
+entre Prosody et ses clients, génération de `/run/{jvb,jicofo}/config/*` à
+partir des templates : tout est conforme à `jitsi/docker-compose.yml`
+(vendored) et à `jitsi/.env.example`. `/config` vide dans les trois
+conteneurs est normal (lecture seule, rendu vers `/run/<service>/config` au
+démarrage) — ce n'est pas un bug.
+
+**Non prouvé par le rapport, et cause la plus probable** — le rapport
+s'arrêtait sur "le port TCP 5222 n'a pas pu être testé (`nc` absent des
+images)". Aucun `mkdir`/`chmod` des répertoires `${CONFIG}/storage/*` et
+`${CONFIG}/tmp/*` n'existait nulle part dans ce dépôt (ni dans
+`jitsi_boot.sh`, ni dans la checklist 7.3). Or, depuis la release
+`stable-11146` de `docker-jitsi-meet`, les conteneurs tournent en rootless
+(uid/gid 1000) avec filesystem en lecture seule ; **seuls** `storage/` et
+`tmp/` sont inscriptibles, et **doivent être créés et rendus inscriptibles
+avant** le premier démarrage — sinon Docker les crée lui-même en
+`root:root`, et le service concerné (Prosody en tout premier lieu, à cause
+de `${CONFIG}/storage/prosody`) refuse de démarrer avec une erreur
+explicite. C'est exactement le scénario qui expliquerait "tout est
+configuré correctement, mais la connexion XMPP n'est jamais prouvée" :
+Prosody ne serait tout simplement jamais réellement à l'écoute sur 5222.
+Référence :
+https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#rootless-and-read-only-containers
+
+**Bug distinct, confirmé et corrigé** — le reverse-proxy nginx CIVITAS
+(`nginx/conf.d/meet.civitas.local.conf`) termine le TLS et reverse-proxy en
+clair vers `web:8000`, mais `DISABLE_HTTPS` n'était jamais positionné : par
+défaut, le conteneur `web` redirige lui-même tout son trafic HTTP interne
+vers son propre HTTPS (certificat auto-signé), ce qui casse la chaîne
+nginx → web. Comportement documenté pour tout déploiement derrière un
+reverse-proxy TLS :
+https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#disable-https
+
+**Correctifs appliqués :**
+- `jitsi/.env.example` : ajout de `DISABLE_HTTPS=1` (seule variable requise
+  ici — `ENABLE_HTTP_REDIRECT`/`ENABLE_LETSENCRYPT` restent à leur défaut).
+- `jitsi/docker-compose.yml` : `depends_on: [web]` sur le service `nginx`
+  (CIVITAS), qui résout `web` au chargement de sa config et échouerait à
+  démarrer si `web` n'existe pas encore sur le réseau.
+- `scripts/lib/jitsi_common.sh` : nouvelles fonctions
+  `ensure_jitsi_docker_config_dirs` (prépare `storage/`/`tmp/` en
+  `chmod 777`, idempotent) et `check_prosody_xmpp_port` (preuve TCP réelle
+  via `/dev/tcp` bash, `nc` étant absent des images).
+- `scripts/jitsi_boot.sh` : appelle la préparation des répertoires avant
+  `docker compose up -d`, et vérifie désormais le port XMPP réel de
+  Prosody plutôt qu'un simple "conteneur actif".
+
+Aucun secret ni template Jitsi n'a été modifié — conformément au
+diagnostic initial, ce n'était pas là que se trouvait le problème.
 
 ---
 
@@ -398,3 +463,10 @@ prochain `boot.sh`. La bascule reste donc une opération volontaire, phasée :
     bascule volontaire, procédure documentée en 7.3, deux étapes
     nécessitant une action manuelle (certificats, plugin Prosody existant
     que je n'ai pas pu porter faute d'accès à son code source).
+- **2026-08-12** — Premier test réel de démarrage du stack Docker : rapport
+  de diagnostic XMPP Prosody/Jicofo/JVB vérifié point par point contre le
+  dépôt et la doc officielle Jitsi. Deux correctifs apportés (préparation
+  des répertoires `${CONFIG}/storage`+`tmp` requise par les conteneurs
+  rootless, `DISABLE_HTTPS=1` pour la chaîne nginx → web) plus une
+  vérification TCP réelle du port XMPP ajoutée à `jitsi_boot.sh`. Détail
+  complet en §7.4.

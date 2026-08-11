@@ -22,6 +22,9 @@
 #                        (défaut : http://localhost:8080/about/health)
 #   JVB_HEALTH_TIMEOUT   Délai max d'attente JVB en secondes (défaut : 180)
 #   CIVITAS_IP           IP du serveur, si l'auto-détection ne convient pas
+#   XMPP_SERVER          Nom XMPP de Prosody, pour la vérification TCP réelle
+#                        du port XMPP en mode Docker (défaut : xmpp.meet.jitsi)
+#   XMPP_PORT            Port XMPP de Prosody à vérifier (défaut : 5222)
 # =============================================================================
 set -uo pipefail  # PAS de -e : chaque échec doit être géré explicitement,
                    # avec un message actionnable, pas juste stopper le script.
@@ -80,6 +83,12 @@ info "Démarrage des composants Jitsi..."
 
 case "$JITSI_MODE" in
     docker)
+        # Conteneurs rootless/read-only (stable-11146+) : storage/ et tmp/
+        # doivent exister et être inscriptibles par l'uid 1000 AVANT le tout
+        # premier démarrage, sinon Prosody (entre autres) refuse de démarrer.
+        # cf. scripts/lib/jitsi_common.sh::ensure_jitsi_docker_config_dirs
+        ensure_jitsi_docker_config_dirs "$JITSI_DIR"
+
         info "docker compose up -d (dans $JITSI_DIR)..."
         if ! ( cd "$JITSI_DIR" && docker compose up -d ); then
             die "Échec du démarrage des conteneurs Jitsi.
@@ -130,11 +139,21 @@ container_running() {
     docker ps --filter "name=$1" --filter "status=running" --format '{{.Names}}' 2>/dev/null | grep -q .
 }
 
-# --- Prosody : conteneur/service actif ---
+# --- Prosody : conteneur/service actif, ET port XMPP réellement joignable ---
+# (un conteneur "actif" ne prouve pas que Prosody écoute réellement sur
+# 5222 — cf. scripts/lib/jitsi_common.sh::check_prosody_xmpp_port)
 case "$JITSI_MODE" in
 docker)
     if container_running "prosody"; then
         log "Prosody : conteneur actif"
+        if check_prosody_xmpp_port "$JITSI_DIR"; then
+            log "Prosody : port XMPP ${XMPP_PORT:-5222} joignable depuis Jicofo (TCP ouvert)"
+        else
+            err "Prosody : conteneur actif mais port XMPP ${XMPP_PORT:-5222} INJOIGNABLE depuis Jicofo"
+            err "  → Diagnostiquer : cd $JITSI_DIR && docker compose logs prosody --tail=100"
+            err "  → Cause fréquente : \${CONFIG}/storage/prosody non inscriptible par l'uid 1000 du conteneur"
+            FAILED=1
+        fi
     else
         err "Prosody : aucun conteneur actif trouvé (filtré sur le nom 'prosody')"
         FAILED=1

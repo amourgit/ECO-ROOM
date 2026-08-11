@@ -101,3 +101,87 @@ detect_jitsi_mode() {
     fi
     return 1
 }
+
+# --- Préparation du répertoire CONFIG (mode Docker uniquement) --------------
+#
+# Depuis la release stable-11146 de jitsi/docker-jitsi-meet, les conteneurs
+# tournent en rootless (uid/gid 1000) avec un filesystem en lecture seule.
+# ${CONFIG}/storage/* et ${CONFIG}/tmp/* sont les SEULS répertoires sur
+# lesquels les conteneurs écrivent (comptes/certs Prosody, TLS web, etc.) ;
+# doc officielle :
+#   https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#rootless-and-read-only-containers
+# S'ils n'existent pas, Docker les crée lui-même en root:root au montage —
+# non inscriptibles par uid 1000 — et le conteneur concerné refuse de
+# démarrer avec une erreur explicite nommant le répertoire fautif. Prosody
+# est le cas le plus critique : sans accès en écriture à
+# ${CONFIG}/storage/prosody, il ne démarre jamais, et JVB/Jicofo ne peuvent
+# alors jamais réellement établir de connexion XMPP vers xmpp.meet.jitsi:5222
+# — même si tout le reste (DNS, secrets, configuration générée) est correct.
+#
+# Lit CONFIG dans le .env du déploiement ($1/.env) ; échoue explicitement
+# si le .env n'existe pas encore (pas de valeur par défaut inventée).
+ensure_jitsi_docker_config_dirs() {
+    local jitsi_dir="$1" env_file config_dir
+    env_file="$jitsi_dir/.env"
+
+    [[ -f "$env_file" ]] || die "$(cat <<EOF
+$env_file introuvable — impossible de préparer les répertoires CONFIG.
+  → cd $jitsi_dir && cp .env.example .env && ./gen-passwords.sh
+EOF
+)"
+
+    config_dir=$(grep -E '^CONFIG=' "$env_file" | tail -1 | cut -d= -f2-)
+    [[ -n "$config_dir" ]] || die "CONFIG= absent ou vide dans $env_file — impossible de préparer les répertoires."
+    config_dir="${config_dir/#\~/$HOME}"
+
+    info "Préparation de \$CONFIG ($config_dir) pour les conteneurs rootless..."
+
+    # Lus par les conteneurs au démarrage (pas d'écriture requise, mais le
+    # répertoire doit exister pour que le bind-mount se fasse proprement).
+    mkdir -p \
+        "$config_dir/web" \
+        "$config_dir/prosody/config" \
+        "$config_dir/prosody/prosody-plugins-custom" \
+        "$config_dir/jicofo" \
+        "$config_dir/jvb" \
+        || die "Échec de création des répertoires de configuration sous $config_dir"
+
+    # Écrits par les conteneurs à l'exécution (état persistant / fichiers
+    # temporaires) — DOIVENT être inscriptibles par l'uid 1000 du conteneur.
+    mkdir -p \
+        "$config_dir/storage/prosody" \
+        "$config_dir/storage/web" \
+        "$config_dir/storage/transcripts" \
+        "$config_dir/tmp/web-crontabs" \
+        "$config_dir/tmp/web-load-test" \
+        || die "Échec de création des répertoires persistants sous $config_dir/{storage,tmp}"
+
+    chmod 777 \
+        "$config_dir/storage/prosody" \
+        "$config_dir/storage/web" \
+        "$config_dir/storage/transcripts" \
+        "$config_dir/tmp/web-crontabs" \
+        "$config_dir/tmp/web-load-test" \
+        || die "Échec du chmod sur $config_dir/{storage,tmp} (inscriptible par uid 1000 requis)"
+
+    log "Répertoires CONFIG prêts (storage/ et tmp/ inscriptibles par uid 1000)"
+}
+
+# --- Vérification réelle de la connexion XMPP JVB/Jicofo -> Prosody ---------
+#
+# Les images Jitsi ne fournissent pas `nc`. On utilise à la place le
+# pseudo-périphérique /dev/tcp de bash (toujours présent dans ces images)
+# pour prouver, ou non, qu'une connexion TCP s'établit réellement sur
+# xmpp.meet.jitsi:5222 depuis le conteneur "jicofo" — la question laissée
+# ouverte par un simple test de résolution DNS ou de process actif.
+# Retourne 0 si le port répond, 1 sinon (jamais bloquant : à l'appelant de
+# décider si c'est fatal).
+check_prosody_xmpp_port() {
+    local jitsi_dir="$1"
+    local xmpp_server="${XMPP_SERVER:-xmpp.meet.jitsi}"
+    local xmpp_port="${XMPP_PORT:-5222}"
+
+    ( cd "$jitsi_dir" && docker compose exec -T jicofo \
+        bash -c "(exec 3<>/dev/tcp/${xmpp_server}/${xmpp_port}) 2>/dev/null" \
+    ) 2>/dev/null
+}

@@ -231,6 +231,12 @@ services:
         context: ../nginx
       container_name: civitas-nginx
       restart: unless-stopped
+      # AJOUT CIVITAS — nginx résout le nom "web" au chargement de sa config
+      # (proxy_pass http://web:8000, sans variable ni resolver dynamique) :
+      # il a besoin que le conteneur "web" existe déjà sur le réseau au
+      # démarrage, sans quoi nginx échoue à démarrer ("host not found").
+      depends_on:
+        - web
 
       ports:
         - "80:80"
