@@ -59,7 +59,11 @@ services:
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: civitas
-      GF_SECURITY_ADMIN_PASSWORD: civitas2024
+      # Valeur par défaut de développement — À CHANGER en production via
+      # GRAFANA_ADMIN_PASSWORD dans /opt/civitas/config/civitas.env (jamais
+      # committé). Ne jamais garder cette valeur par défaut sur un
+      # déploiement exposé au-delà du LAN interne.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-civitas2024}
       GF_SERVER_HTTP_PORT: 3000
       GF_USERS_ALLOW_SIGN_UP: false
       GF_LOG_LEVEL: warn

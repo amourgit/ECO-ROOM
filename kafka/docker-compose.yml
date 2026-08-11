@@ -53,7 +53,11 @@ services:
       SERVER_PORT: 8090
       AUTH_TYPE: LOGIN_FORM
       SPRING_SECURITY_USER_NAME: civitas
-      SPRING_SECURITY_USER_PASSWORD: civitas2024
+      # Valeur par défaut de développement — À CHANGER en production via
+      # KAFKA_UI_ADMIN_PASSWORD dans /opt/civitas/config/civitas.env (jamais
+      # committé). Ne jamais garder cette valeur par défaut sur un
+      # déploiement exposé au-delà du LAN interne.
+      SPRING_SECURITY_USER_PASSWORD: ${KAFKA_UI_ADMIN_PASSWORD:-civitas2024}
     ports:
       - "8090:8090"
     networks:

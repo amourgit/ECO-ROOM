@@ -10,17 +10,14 @@ services:
       - /opt/civitas/certs:/certs:ro
     networks:
       - civitas-net
-    # Jitsi tourne aujourd'hui en natif (hors Docker) sur cette machine —
-    # peer doit donc résoudre meet.civitas.local vers l'IP hôte. Adresse
-    # substituée dynamiquement par Docker Compose (jamais codée en dur),
-    # depuis config/civitas.env — cf. scripts/boot.sh qui l'exporte avant
-    # tout docker compose up. À supprimer entièrement une fois Jitsi
-    # containerisé (cf. jitsi/docker-compose.yml + PLAN_SYNCHRONISATION_ROOMS_JITSI.md,
-    # §7 Containerisation Jitsi) : peer rejoindra alors directement le
-    # réseau meet.jitsi et résoudra meet.civitas.local via son alias Docker,
-    # sans plus jamais avoir besoin d'une IP ici.
-    extra_hosts:
-      - "meet.civitas.local:${CIVITAS_IP}"
+    # Jitsi est désormais containerisé (cf. jitsi/docker-compose.yml) : "peer"
+    # résout meet.civitas.local nativement via le DNS Docker, grâce à l'alias
+    # porté par le conteneur nginx (seul point qui termine le TLS attendu
+    # ici, puisque peer ouvre https://meet.civitas.local) sur civitas-net.
+    # Aucune IP nécessaire — l'ancien hack extra_hosts basé sur CIVITAS_IP
+    # (qui pointait vers l'hôte, pour un Jitsi natif hors Docker) a été
+    # retiré : il était devenu à la fois inutile et une source de dérive si
+    # l'IP hôte change (cf. config/civitas.env, non versionné).
     shm_size: '2gb'
 
 networks:

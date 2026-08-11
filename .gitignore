@@ -207,9 +207,12 @@ test-results.xml
 .env.test.local
 .env.production.local
 
-# CIVITAS — fichiers générés dynamiquement par scripts/boot.sh (envsubst),
-# jamais commités : les valeurs réelles dépendent de l'environnement de
-# déploiement (cf. config/civitas.env.example)
+# CIVITAS — fichiers générés dynamiquement (par 01_system_base.sh ou
+# scripts/boot.sh / envsubst), jamais commités : les valeurs réelles
+# dépendent de l'environnement de déploiement (IP hôte, secrets...).
+# cf. config/civitas.env.example et jitsi/.env.example pour les templates.
+config/civitas.env
 monitoring/prometheus/prometheus.yml
 jitsi/.env
+jitsi/.env.bak
 jitsi/data/

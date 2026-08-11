@@ -217,12 +217,12 @@ services:
             # à l'upstream officiel jitsi/docker-jitsi-meet. Tout le reste
             # de ce fichier est vendored tel quel, pour rester upgradable
             # sans divergence (cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md, §7).
-            # Attache "web" au réseau CIVITAS avec l'alias meet.civitas.local,
-            # pour que les conteneurs CIVITAS (peer notamment) le résolvent
-            # nativement via le DNS Docker — sans IP en dur, sans extra_hosts.
+            # "web" rejoint civitas-net (sans alias meet.civitas.local : ce
+            # conteneur ne sert que du HTTP interne sur le port 8000, sans
+            # TLS — l'alias public appartient à "nginx" ci-dessous, seul
+            # point qui termine réellement le TLS attendu par les clients
+            # (dont le service "peer", qui ouvre https://meet.civitas.local).
             civitas-net:
-                aliases:
-                    - meet.civitas.local
         depends_on:
             - jvb
 
@@ -243,8 +243,18 @@ services:
         - ../certs/civitas.local.key:/etc/ssl/meet.civitas.local.key:ro
 
       networks:
-        - civitas-net
-        - default
+        civitas-net:
+          # AJOUT CIVITAS — alias porté ici (et non sur "web") car nginx est
+          # le seul conteneur qui termine réellement le TLS sur 443 pour
+          # meet.civitas.local. Tout conteneur interne (peer, room-config,
+          # room-spawner, event-bridge...) qui a besoin de joindre
+          # https://meet.civitas.local le résout ainsi nativement via le DNS
+          # Docker, sans jamais passer par l'IP hôte (cf. services/peer/
+          # docker-compose.yml, dont l'extra_hosts basé sur CIVITAS_IP a été
+          # retiré en conséquence).
+          aliases:
+            - meet.civitas.local
+        default:
 
     # XMPP server
     prosody:

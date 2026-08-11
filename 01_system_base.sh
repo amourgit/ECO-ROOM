@@ -168,8 +168,11 @@ ufw allow from "$SERVER_CIDR" to any port 9093  comment "Kafka controller"
 # Grafana (interne uniquement)
 ufw allow from "$SERVER_CIDR" to any port 3000  comment "Grafana interne"
 
-# Kafka UI (interne uniquement)
-ufw allow from "$SERVER_CIDR" to any port 8080  comment "Kafka UI interne"
+# Kafka UI (interne uniquement) — le conteneur kafka-ui publie réellement
+# 8090 (cf. kafka/docker-compose.yml : SERVER_PORT / ports "8090:8090"),
+# pas 8080 : garder ce port aligné avec le compose sous peine de bloquer
+# l'accès à l'interface par le firewall.
+ufw allow from "$SERVER_CIDR" to any port 8090  comment "Kafka UI interne"
 
 # Prosody XMPP (interne)
 ufw allow from 127.0.0.1 to any port 5222 comment "XMPP client local"
@@ -483,7 +486,7 @@ COTURN_PORT=3478
 # cf. kafka/docker-compose.yml et README.md § Kafka.
 KAFKA_PORT=9092
 GRAFANA_PORT=3000
-KAFKA_UI_PORT=8080
+KAFKA_UI_PORT=8090
 EOF
 
 chmod 640 /opt/civitas/config/civitas.env

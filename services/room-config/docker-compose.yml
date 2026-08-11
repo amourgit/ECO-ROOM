@@ -6,7 +6,11 @@ services:
     environment:
       POSTGRES_DB: room_config
       POSTGRES_USER: civitas
-      POSTGRES_PASSWORD: civitas2024
+      # Valeur par défaut de développement — À CHANGER en production via
+      # POSTGRES_ROOM_CONFIG_PASSWORD dans /opt/civitas/config/civitas.env
+      # (jamais committé). room-config doit recevoir la même valeur dans son
+      # propre .env (DATABASE_URL) pour continuer à s'authentifier.
+      POSTGRES_PASSWORD: ${POSTGRES_ROOM_CONFIG_PASSWORD:-civitas2024}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
