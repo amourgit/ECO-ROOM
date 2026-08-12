@@ -27,6 +27,11 @@
 #   XMPP_PORT            Port XMPP de Prosody à vérifier (défaut : 5222)
 #   PROSODY_LISTEN_TIMEOUT  Délai max d'attente de l'écoute Prosody, en
 #                        secondes (défaut : 60)
+#   JICOFO_HEALTH_URL    URL de health-check Jicofo (requiert
+#                        JICOFO_ENABLE_HEALTH_CHECKS=1 dans jitsi/.env)
+#                        (défaut : http://localhost:8888/about/health)
+#   JICOFO_HEALTH_TIMEOUT  Délai max d'attente santé Jicofo, en secondes
+#                        (défaut : 60)
 # =============================================================================
 set -uo pipefail  # PAS de -e : chaque échec doit être géré explicitement,
                    # avec un message actionnable, pas juste stopper le script.
@@ -185,19 +190,52 @@ systemd)
     ;;
 esac
 
-# --- Jicofo : process/conteneur actif ---
+# --- Jicofo : conteneur actif, ET santé REST réelle (auth XMPP incluse) ---
+# Un port TCP ouvert sur Prosody NE PROUVE PAS que Jicofo s'est authentifié
+# avec succès (SASL peut échouer après coup — vécu en pratique : TCP ouvert
+# ET SASLError "not-authorized" en boucle simultanément, cf. §7.5 de
+# PLAN_SYNCHRONISATION_ROOMS_JITSI.md). Le health-check REST de Jicofo,
+# lui, tente réellement de rejoindre une conférence — donc de s'authentifier
+# à Prosody — pour répondre 200 : c'est la seule preuve fiable ici. Requiert
+# JICOFO_ENABLE_HEALTH_CHECKS=1 dans jitsi/.env (déjà dans .env.example).
+JICOFO_OK=0
+JICOFO_HEALTH_URL="${JICOFO_HEALTH_URL:-http://localhost:8888/about/health}"
+JICOFO_HEALTH_TIMEOUT="${JICOFO_HEALTH_TIMEOUT:-60}"
 case "$JITSI_MODE" in
     docker)
-        if container_running "jicofo"; then
-            log "Jicofo : conteneur actif"
-        else
+        if ! container_running "jicofo"; then
             err "Jicofo : aucun conteneur actif trouvé (filtré sur le nom 'jicofo')"
             FAILED=1
+        elif [ "$PROSODY_OK" -ne 1 ]; then
+            warn "Jicofo : vérification de santé sautée (Prosody non confirmé à l'écoute)"
+            FAILED=1
+        else
+            log "Jicofo : conteneur actif"
+            info "Attente santé Jicofo (max ${JICOFO_HEALTH_TIMEOUT}s sur $JICOFO_HEALTH_URL)..."
+            elapsed=0
+            jicofo_status="000"
+            while [ "$elapsed" -lt "$JICOFO_HEALTH_TIMEOUT" ]; do
+                jicofo_status=$(curl -s -o /dev/null -w "%{http_code}" "$JICOFO_HEALTH_URL" 2>/dev/null || echo "000")
+                [ "$jicofo_status" = "200" ] && break
+                sleep 3
+                elapsed=$((elapsed + 3))
+            done
+            if [ "$jicofo_status" = "200" ]; then
+                log "Jicofo : opérationnel et authentifié auprès de Prosody (HTTP 200 après ${elapsed}s)"
+                JICOFO_OK=1
+            else
+                err "Jicofo : conteneur actif mais santé REST KO après ${JICOFO_HEALTH_TIMEOUT}s (dernier code : $jicofo_status)"
+                err "  → Cause fréquente : SASLError 'not-authorized' — comptes Prosody désynchronisés du .env actuel"
+                err "  → Vérifier : cd $JITSI_DIR && docker compose logs jicofo --tail=50"
+                err "  → Si 'not-authorized' visible : sudo bash scripts/jitsi_reset_prosody.sh"
+                FAILED=1
+            fi
         fi
         ;;
     systemd)
         if systemctl is-active --quiet jicofo; then
             log "Jicofo : service actif"
+            JICOFO_OK=1
         else
             err "Jicofo : service inactif — journalctl -u jicofo -n 100 --no-pager"
             FAILED=1
@@ -206,6 +244,10 @@ case "$JITSI_MODE" in
 esac
 
 # --- JVB : health endpoint HTTP, avec attente active ---
+# Note : le /about/health de JVB répond 200 dès que son serveur REST est
+# levé, MÊME SI sa propre connexion XMPP vers la brewery MUC échoue encore
+# en SASL (vécu en pratique) — ce n'est donc pas une preuve d'authentification
+# JVB->Prosody à lui seul. En cas de doute, vérifier aussi les logs JVB.
 # Inutile d'attendre JVB_HEALTH_TIMEOUT (jusqu'à 3 min) s'il est déjà acquis
 # que Prosody n'écoute pas : JVB ne pourra de toute façon jamais s'y
 # connecter en XMPP tant que ce n'est pas corrigé (cf. bloc Prosody ci-dessus).
@@ -228,7 +270,7 @@ else
     else
         err "JVB non disponible après ${JVB_HEALTH_TIMEOUT}s (dernier code HTTP : $jvb_status)"
         case "$JITSI_MODE" in
-            docker)  err "  → Diagnostiquer : docker logs jvb --tail=100" ;;
+            docker)  err "  → Diagnostiquer : cd $JITSI_DIR && docker compose logs jvb --tail=100" ;;
             systemd) err "  → Diagnostiquer : journalctl -u jitsi-videobridge2 -n 100 --no-pager" ;;
         esac
         FAILED=1

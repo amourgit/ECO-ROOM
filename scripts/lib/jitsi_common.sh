@@ -223,3 +223,53 @@ prosody_listen_diagnose() {
         docker compose logs prosody --tail=30 2>&1 | sed 's/^/  /'
     } ) >&2
 }
+
+# --- Réinitialisation ciblée des comptes XMPP internes de Prosody -----------
+#
+# Cause connue et documentée (communauté Jitsi) du SASLError "not-authorized"
+# sur Jicofo/JVB alors que .env est par ailleurs cohérent : Prosody NE MET
+# JAMAIS À JOUR le mot de passe d'un compte XMPP interne (jicofo, jvb, ...)
+# déjà enregistré dans son stockage persistant (${CONFIG}/storage/prosody)
+# — il ne le crée qu'une fois. Si JICOFO_AUTH_PASSWORD/JVB_AUTH_PASSWORD
+# changent ensuite (gen-passwords.sh relancé, ou ${CONFIG} réutilisé d'un
+# essai Docker précédent), les comptes stockés restent sur l'ANCIEN mot de
+# passe : Jicofo/JVB présentent le nouveau, Prosody attend l'ancien -> SASL
+# not-authorized en boucle, même TCP grand ouvert. Référence :
+#   https://www.cynkra.com/blog/2020-11-02-jitsi-load-balanced/
+#   ("Do not run gen-passwords.sh multiple times... delete all config
+#    folders before running docker-compose up again")
+#
+# Ne touche QUE ${CONFIG}/storage/prosody (comptes, roster, certs
+# auto-générés) — jamais ${CONFIG}/storage/web (certificats web) ni les
+# répertoires de configuration en lecture seule. Prosody redémarre ensuite
+# avec un stockage vide et recrée les comptes à partir du .env ACTUEL ;
+# Jicofo/JVB, déjà en boucle de reconnexion, retrouvent l'accès sans qu'il
+# soit nécessaire de les redémarrer.
+reset_prosody_account_storage() {
+    local jitsi_dir="$1" env_file config_dir prosody_storage
+    env_file="$jitsi_dir/.env"
+
+    [[ -f "$env_file" ]] || die "$env_file introuvable."
+
+    config_dir=$(grep -E '^CONFIG=' "$env_file" | tail -1 | cut -d= -f2-)
+    [[ -n "$config_dir" ]] || die "CONFIG= absent ou vide dans $env_file."
+    config_dir="${config_dir/#\~/$HOME}"
+    prosody_storage="$config_dir/storage/prosody"
+
+    [[ "$prosody_storage" == */storage/prosody ]] || die "Chemin de stockage Prosody inattendu, arrêt par sécurité : $prosody_storage"
+
+    info "Arrêt de Prosody..."
+    ( cd "$jitsi_dir" && docker compose stop prosody ) \
+        || die "Échec de l'arrêt du conteneur prosody."
+
+    info "Purge de $prosody_storage (comptes XMPP internes)..."
+    rm -rf --one-file-system -- "${prosody_storage:?}"/* "${prosody_storage:?}"/.[!.]* 2>/dev/null
+    mkdir -p "$prosody_storage" && chmod 777 "$prosody_storage" \
+        || die "Échec de la recréation de $prosody_storage"
+
+    info "Redémarrage de Prosody (comptes recréés depuis $env_file)..."
+    ( cd "$jitsi_dir" && docker compose up -d prosody ) \
+        || die "Échec du redémarrage du conteneur prosody."
+
+    log "Stockage Prosody réinitialisé — Jicofo/JVB devraient se réauthentifier automatiquement (boucle de reconnexion déjà active)."
+}

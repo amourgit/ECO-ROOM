@@ -443,6 +443,69 @@ d'échec pour aller droit à la cause.
 Aucun secret ni template Jitsi n'a été modifié — conformément au
 diagnostic initial, ce n'était pas là que se trouvait le problème.
 
+### 7.5 — SASLError "not-authorized" après le premier `docker compose up -d` réel (2026-08-12)
+
+Le premier démarrage réel avec les correctifs de 7.4 a **confirmé leur
+efficacité** : `scripts/jitsi_boot.sh` a créé/chmod les répertoires
+`storage/`+`tmp/`, `docker compose up -d` a réussi, Prosody a été confirmé
+à l'écoute sur 5222 (`ss -ltn`), joignable depuis Jicofo. Mais les logs
+réels ont révélé un problème **suivant**, jusque-là masqué par l'échec plus
+en amont :
+
+```
+Jicofo : SASLError using SCRAM-SHA-1: not-authorized (en boucle)
+JVB    : SASLError using SCRAM-SHA-1: not-authorized (en boucle, sur son
+         MucClient vers xmpp.meet.jitsi)
+```
+
+Le port est ouvert, la configuration (domaines, secrets déclarés dans
+`.env`) est cohérente — mais l'authentification XMPP échoue quand même.
+**Cause connue et documentée par la communauté Jitsi**, pas spécifique à
+CIVITAS : Prosody enregistre les comptes internes (`jicofo`, `jvb`, ...)
+**une seule fois**, dans son stockage persistant
+(`${CONFIG}/storage/prosody`). Si ce stockage contient déjà des comptes
+créés avec d'anciens mots de passe (`./gen-passwords.sh` relancé après un
+premier essai, ou `${CONFIG}` réutilisé d'une tentative Docker antérieure —
+précisément le cas ici, cf. le tout premier rapport de ce diagnostic qui
+inspectait déjà des conteneurs `jitsi-prosody-1` réels), Prosody **ne met
+jamais à jour** le mot de passe stocké : Jicofo/JVB présentent le nouveau
+mot de passe de `.env`, Prosody attend l'ancien → SASL `not-authorized` en
+boucle, même avec un TCP grand ouvert. Référence communauté :
+https://www.cynkra.com/blog/2020-11-02-jitsi-load-balanced/ ("Do not run
+gen-passwords.sh multiple times... you need to delete all config folders
+before running docker-compose up again").
+
+**Remédiation immédiate (à exécuter sur le serveur) :**
+```bash
+sudo bash scripts/jitsi_reset_prosody.sh
+```
+Purge uniquement `${CONFIG}/storage/prosody` (comptes/roster/certs
+auto-générés — jamais les certificats web ni la configuration), redémarre
+Prosody seul ; Jicofo/JVB, déjà en boucle de reconnexion active, se
+réauthentifient automatiquement avec les mots de passe **actuels** de
+`.env` sans qu'il soit nécessaire de les redémarrer.
+
+**Correctifs de fond apportés (pour que cette classe d'échec soit
+détectée automatiquement à l'avenir, au lieu d'un faux "succès") :**
+- `jitsi/.env.example` : `JICOFO_ENABLE_HEALTH_CHECKS=1` — sans cette
+  variable (désactivée par défaut), Jicofo n'expose aucun moyen de
+  prouver qu'il est réellement authentifié.
+- `scripts/lib/jitsi_common.sh` : `reset_prosody_account_storage()`,
+  utilisée par le nouveau script ci-dessous.
+- `scripts/jitsi_reset_prosody.sh` (nouveau) : réinitialisation ciblée,
+  avec confirmation (`--yes` pour l'automatiser), qui ne touche que le
+  stockage des comptes Prosody.
+- `scripts/jitsi_boot.sh` : le check Jicofo interroge désormais
+  `http://localhost:8888/about/health` (poll, jusqu'à ce que Jicofo
+  rejoigne réellement une conférence test — donc s'authentifie) au lieu
+  de se contenter d'un "conteneur actif". **Constat important, documenté
+  en commentaire dans le script** : le `/about/health` de JVB, lui,
+  répondait déjà 200 alors que son propre SASL échouait encore en
+  arrière-plan — ce n'est donc pas une preuve d'authentification à lui
+  seul, contrairement à celui de Jicofo (qui tente de rejoindre une
+  conférence pour répondre). D'où le choix de fiabiliser spécifiquement
+  le check Jicofo plutôt que celui de JVB.
+
 ---
 
 ## Journal des mises à jour
@@ -471,3 +534,12 @@ diagnostic initial, ce n'était pas là que se trouvait le problème.
   rootless, `DISABLE_HTTPS=1` pour la chaîne nginx → web) plus une
   vérification TCP réelle du port XMPP ajoutée à `jitsi_boot.sh`. Détail
   complet en §7.4.
+- **2026-08-12 (suite)** — Premier `docker compose up -d` réel avec les
+  correctifs de 7.4 : succès (Prosody à l'écoute, confirmé). A révélé un
+  problème suivant, jusque-là masqué : SASLError "not-authorized" sur
+  Jicofo et JVB — comptes XMPP Prosody désynchronisés du `.env` actuel
+  (cause connue, documentée par la communauté Jitsi). Script de
+  remédiation ciblée ajouté (`jitsi_reset_prosody.sh`), et le check Jicofo
+  de `jitsi_boot.sh` vérifie désormais une vraie preuve d'authentification
+  (health-check REST) plutôt qu'un "conteneur actif". Détail complet en
+  §7.5.

@@ -677,9 +677,10 @@ Le certificat est utilisé par :
 
 1. **`scripts/jitsi_boot.sh`** — démarre (ou vérifie s'il tourne déjà) le stack Jitsi Meet complet, puis vérifie chaque composant un par un, dans l'ordre réel de dépendance :
    - Découverte automatique du mode de déploiement : Docker (`docker-jitsi-meet`, cherché dans plusieurs chemins conventionnels, ou `JITSI_COMPOSE_DIR`) ou natif (services systemd `prosody`/`jicofo`/`jitsi-videobridge2`/`nginx`)
-   - Démarrage : `docker compose up -d` ou `systemctl start` selon le mode détecté
-   - Vérifications : Prosody (ports XMPP 5222/5269) → Jicofo (process/conteneur actif) → JVB (poll `http://localhost:8080/about/health`, max 180s) → Web (port 443/80)
-   - Échoue avec un message actionnable si un composant n'est pas trouvable ou ne démarre pas (jamais un simple timeout muet)
+   - En mode Docker : prépare d'abord `${CONFIG}/storage`+`tmp` (inscriptibles par l'uid 1000, requis par les conteneurs rootless depuis `stable-11146`) avant `docker compose up -d`
+   - Vérifications, chacune une preuve réelle et non un simple "conteneur actif" : Prosody (écoute XMPP constatée par `ss -ltn` *dans* le conteneur, avec attente active) → Jicofo (health-check REST `/about/health`, qui exige une authentification XMPP réussie auprès de Prosody) → JVB (poll `http://localhost:8080/about/health`, max 180s) → Web (port 443/80)
+   - Échoue avec un message actionnable si un composant n'est pas trouvable ou ne démarre pas (jamais un simple timeout muet) ; saute les vérifications en aval (JVB, Jicofo) si Prosody n'est pas confirmé, plutôt que d'attendre pour rien
+2. **`scripts/jitsi_reset_prosody.sh`** — à lancer si Jicofo/JVB affichent `SASLError ... not-authorized` en boucle dans leurs logs alors que `.env` est cohérent (comptes XMPP internes de Prosody désynchronisés — `gen-passwords.sh` relancé ou `${CONFIG}` réutilisé d'un essai précédent). Purge uniquement le stockage des comptes Prosody, jamais les certificats web.
 2. Kafka (+ 15s d'attente)
 3. Monitoring (Prometheus, Loki, Promtail, Grafana)
 4. Room Config (+ 5s d'attente)
@@ -698,8 +699,10 @@ Ordre inverse : Peer → Room Spawner → Event Bridge → Room Config → Monit
 | Variable | Rôle |
 |----------|------|
 | `JITSI_COMPOSE_DIR` | Chemin du `docker-compose.yml` Jitsi, si l'auto-détection ne le trouve pas |
-| `JVB_HEALTH_URL` | URL de health-check JVB (défaut : `http://localhost:8080/about/health`) |
-| `JVB_HEALTH_TIMEOUT` | Délai max d'attente JVB en secondes (défaut : 180) |
+| `XMPP_SERVER` / `XMPP_PORT` | Nom/port XMPP de Prosody à vérifier (défaut : `xmpp.meet.jitsi` / `5222`) |
+| `PROSODY_LISTEN_TIMEOUT` | Délai max d'attente de l'écoute Prosody (défaut : 60s) |
+| `JICOFO_HEALTH_URL` / `JICOFO_HEALTH_TIMEOUT` | Health-check Jicofo (défaut : `http://localhost:8888/about/health`, 60s) — requiert `JICOFO_ENABLE_HEALTH_CHECKS=1` dans `jitsi/.env` |
+| `JVB_HEALTH_URL` / `JVB_HEALTH_TIMEOUT` | Health-check JVB (défaut : `http://localhost:8080/about/health`, 180s) |
 | `CIVITAS_IP` | Force l'IP du serveur si l'auto-détection ne convient pas |
 
 **Chemin de déploiement :** `/opt/civitas/`
