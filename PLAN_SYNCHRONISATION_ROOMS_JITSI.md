@@ -425,19 +425,20 @@ nginx → web. Comportement documenté pour tout déploiement derrière un
 reverse-proxy TLS :
 https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#disable-https
 
-**Correctifs appliqués :**
-- `jitsi/.env.example` : ajout de `DISABLE_HTTPS=1` (seule variable requise
-  ici — `ENABLE_HTTP_REDIRECT`/`ENABLE_LETSENCRYPT` restent à leur défaut).
-- `jitsi/docker-compose.yml` : `depends_on: [web]` sur le service `nginx`
-  (CIVITAS), qui résout `web` au chargement de sa config et échouerait à
-  démarrer si `web` n'existe pas encore sur le réseau.
-- `scripts/lib/jitsi_common.sh` : nouvelles fonctions
-  `ensure_jitsi_docker_config_dirs` (prépare `storage/`/`tmp/` en
-  `chmod 777`, idempotent) et `check_prosody_xmpp_port` (preuve TCP réelle
-  via `/dev/tcp` bash, `nc` étant absent des images).
-- `scripts/jitsi_boot.sh` : appelle la préparation des répertoires avant
-  `docker compose up -d`, et vérifie désormais le port XMPP réel de
-  Prosody plutôt qu'un simple "conteneur actif".
+**Mise à jour du 2026-08-12 (suite) — confirmation terrain :** un `ss -ltn`
+exécuté directement dans le conteneur `prosody` a confirmé l'hypothèse
+ci-dessus : aucun listener sur 5222. `scripts/lib/jitsi_common.sh` a été
+complété en conséquence — `check_prosody_xmpp_port` (test TCP one-shot
+immédiatement après `docker compose up -d`) est remplacée par
+`ensure_jitsi_docker_config_dirs` (prépare `storage/`/`tmp/` en
+`chmod 777`, idempotent), `wait_for_prosody_listening` (poll `ss -ltn`
+*dans* le conteneur Prosody, avec timeout — un test one-shot immédiat
+produisait de faux négatifs le temps que Prosody termine son init) et
+`check_prosody_reachable_from_jicofo` (preuve de bout en bout via
+`/dev/tcp`, `nc` étant absent des images). `jitsi_boot.sh` n'attend plus
+JVB (jusqu'à 3 min) si Prosody n'est pas déjà confirmé à l'écoute, et
+imprime `ss -ltn` + les 30 dernières lignes de logs Prosody en cas
+d'échec pour aller droit à la cause.
 
 Aucun secret ni template Jitsi n'a été modifié — conformément au
 diagnostic initial, ce n'était pas là que se trouvait le problème.

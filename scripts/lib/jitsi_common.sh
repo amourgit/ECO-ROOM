@@ -167,16 +167,41 @@ EOF
     log "Répertoires CONFIG prêts (storage/ et tmp/ inscriptibles par uid 1000)"
 }
 
-# --- Vérification réelle de la connexion XMPP JVB/Jicofo -> Prosody ---------
+# --- Vérification réelle de l'écoute Prosody sur le port XMPP ---------------
 #
-# Les images Jitsi ne fournissent pas `nc`. On utilise à la place le
-# pseudo-périphérique /dev/tcp de bash (toujours présent dans ces images)
-# pour prouver, ou non, qu'une connexion TCP s'établit réellement sur
-# xmpp.meet.jitsi:5222 depuis le conteneur "jicofo" — la question laissée
-# ouverte par un simple test de résolution DNS ou de process actif.
-# Retourne 0 si le port répond, 1 sinon (jamais bloquant : à l'appelant de
-# décider si c'est fatal).
-check_prosody_xmpp_port() {
+# Deux niveaux de preuve, dans l'ordre :
+#   1. Prosody lui-même écoute-t-il sur 5222 ? -> `ss -ltn` DANS le
+#      conteneur prosody (confirmé disponible dans l'image, contrairement à
+#      `nc`). C'est la preuve la plus directe : un conteneur "actif" côté
+#      Docker ne dit rien de l'état interne du process Prosody lui-même
+#      (s6-overlay peut le laisser en crash-loop sans jamais faire sortir
+#      le conteneur, cf. §7.4 de PLAN_SYNCHRONISATION_ROOMS_JITSI.md).
+#   2. Si (1) est vrai, la connexion aboutit-elle bien depuis Jicofo (le
+#      vrai client XMPP), et pas seulement en loopback sur Prosody ?
+#      `nc` étant absent des images, on utilise /dev/tcp (pseudo-device bash).
+#
+# wait_for_prosody_listening fait du polling (Prosody peut mettre quelques
+# secondes à terminer son init — génération de certificats, stockage —
+# après "docker compose up -d") : un test one-shot immédiat après le
+# démarrage produirait de faux négatifs même sur un déploiement sain.
+wait_for_prosody_listening() {
+    local jitsi_dir="$1" timeout="${2:-60}"
+    local xmpp_port="${XMPP_PORT:-5222}"
+    local elapsed=0
+    while [ "$elapsed" -lt "$timeout" ]; do
+        if ( cd "$jitsi_dir" && docker compose exec -T prosody ss -ltn 2>/dev/null ) \
+                | grep -q ":${xmpp_port}[[:space:]]"; then
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    return 1
+}
+
+# Preuve de bout en bout : Jicofo (client XMPP réel) parvient-il à ouvrir
+# une connexion TCP vers Prosody, pas seulement Prosody qui écoute en local.
+check_prosody_reachable_from_jicofo() {
     local jitsi_dir="$1"
     local xmpp_server="${XMPP_SERVER:-xmpp.meet.jitsi}"
     local xmpp_port="${XMPP_PORT:-5222}"
@@ -184,4 +209,17 @@ check_prosody_xmpp_port() {
     ( cd "$jitsi_dir" && docker compose exec -T jicofo \
         bash -c "(exec 3<>/dev/tcp/${xmpp_server}/${xmpp_port}) 2>/dev/null" \
     ) 2>/dev/null
+}
+
+# Diagnostic imprimé uniquement en cas d'échec : sortie ss réelle dans
+# Prosody + fin des logs, pour aller droit à la cause (le plus souvent une
+# permission refusée sur ${CONFIG}/storage/prosody lors de l'init).
+prosody_listen_diagnose() {
+    local jitsi_dir="$1"
+    ( cd "$jitsi_dir" && {
+        echo "  -- ss -ltn (dans le conteneur prosody) --"
+        docker compose exec -T prosody ss -ltn 2>&1 | sed 's/^/  /'
+        echo "  -- docker compose logs prosody --tail=30 --"
+        docker compose logs prosody --tail=30 2>&1 | sed 's/^/  /'
+    } ) >&2
 }

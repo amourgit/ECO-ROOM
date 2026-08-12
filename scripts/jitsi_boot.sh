@@ -25,6 +25,8 @@
 #   XMPP_SERVER          Nom XMPP de Prosody, pour la vérification TCP réelle
 #                        du port XMPP en mode Docker (défaut : xmpp.meet.jitsi)
 #   XMPP_PORT            Port XMPP de Prosody à vérifier (défaut : 5222)
+#   PROSODY_LISTEN_TIMEOUT  Délai max d'attente de l'écoute Prosody, en
+#                        secondes (défaut : 60)
 # =============================================================================
 set -uo pipefail  # PAS de -e : chaque échec doit être géré explicitement,
                    # avec un message actionnable, pas juste stopper le script.
@@ -139,19 +141,32 @@ container_running() {
     docker ps --filter "name=$1" --filter "status=running" --format '{{.Names}}' 2>/dev/null | grep -q .
 }
 
-# --- Prosody : conteneur/service actif, ET port XMPP réellement joignable ---
-# (un conteneur "actif" ne prouve pas que Prosody écoute réellement sur
-# 5222 — cf. scripts/lib/jitsi_common.sh::check_prosody_xmpp_port)
+# --- Prosody : conteneur actif, ET écoute TCP/XMPP réellement constatée ---
+# (un conteneur "actif" ne prouve rien de l'état interne de Prosody —
+# cf. scripts/lib/jitsi_common.sh::wait_for_prosody_listening)
+PROSODY_OK=0
+PROSODY_LISTEN_TIMEOUT="${PROSODY_LISTEN_TIMEOUT:-60}"
 case "$JITSI_MODE" in
 docker)
     if container_running "prosody"; then
         log "Prosody : conteneur actif"
-        if check_prosody_xmpp_port "$JITSI_DIR"; then
-            log "Prosody : port XMPP ${XMPP_PORT:-5222} joignable depuis Jicofo (TCP ouvert)"
+        info "Attente de l'écoute XMPP (max ${PROSODY_LISTEN_TIMEOUT}s, ss -ltn dans le conteneur prosody)..."
+        if wait_for_prosody_listening "$JITSI_DIR" "$PROSODY_LISTEN_TIMEOUT"; then
+            log "Prosody : écoute confirmée sur le port ${XMPP_PORT:-5222} (ss -ltn)"
+            if check_prosody_reachable_from_jicofo "$JITSI_DIR"; then
+                log "Prosody : joignable depuis Jicofo (TCP ouvert de bout en bout)"
+                PROSODY_OK=1
+            else
+                err "Prosody écoute localement, mais INJOIGNABLE depuis Jicofo (réseau Docker/pare-feu ?)"
+                FAILED=1
+            fi
         else
-            err "Prosody : conteneur actif mais port XMPP ${XMPP_PORT:-5222} INJOIGNABLE depuis Jicofo"
-            err "  → Diagnostiquer : cd $JITSI_DIR && docker compose logs prosody --tail=100"
-            err "  → Cause fréquente : \${CONFIG}/storage/prosody non inscriptible par l'uid 1000 du conteneur"
+            err "Prosody : conteneur actif mais AUCUNE écoute sur le port ${XMPP_PORT:-5222} après ${PROSODY_LISTEN_TIMEOUT}s"
+            err "  → Cause la plus fréquente : \${CONFIG}/storage/prosody non inscriptible par l'uid 1000"
+            err "    du conteneur (Prosody plante silencieusement à l'init, sans faire sortir le conteneur —"
+            err "    s6-overlay le relance en boucle). Ce script a préparé ces répertoires en (2), donc si"
+            err "    l'erreur persiste, vérifier qu'aucun processus externe n'a recréé/remonté \${CONFIG}."
+            prosody_listen_diagnose "$JITSI_DIR"
             FAILED=1
         fi
     else
@@ -162,6 +177,7 @@ docker)
 systemd)
     if systemctl is-active --quiet prosody; then
         log "Prosody : service actif"
+        PROSODY_OK=1
     else
         err "Prosody : service inactif — journalctl -u prosody -n 100 --no-pager"
         FAILED=1
@@ -190,25 +206,33 @@ case "$JITSI_MODE" in
 esac
 
 # --- JVB : health endpoint HTTP, avec attente active ---
-info "Attente JVB prêt (max ${JVB_HEALTH_TIMEOUT}s sur $JVB_HEALTH_URL)..."
-elapsed=0
-jvb_status="000"
-while [ "$elapsed" -lt "$JVB_HEALTH_TIMEOUT" ]; do
-    jvb_status=$(curl -s -o /dev/null -w "%{http_code}" "$JVB_HEALTH_URL" 2>/dev/null || echo "000")
-    [ "$jvb_status" = "200" ] && break
-    sleep 5
-    elapsed=$((elapsed + 5))
-done
-
-if [ "$jvb_status" = "200" ]; then
-    log "JVB prêt (HTTP 200 après ${elapsed}s)"
-else
-    err "JVB non disponible après ${JVB_HEALTH_TIMEOUT}s (dernier code HTTP : $jvb_status)"
-    case "$JITSI_MODE" in
-        docker)  err "  → Diagnostiquer : docker logs jvb --tail=100" ;;
-        systemd) err "  → Diagnostiquer : journalctl -u jitsi-videobridge2 -n 100 --no-pager" ;;
-    esac
+# Inutile d'attendre JVB_HEALTH_TIMEOUT (jusqu'à 3 min) s'il est déjà acquis
+# que Prosody n'écoute pas : JVB ne pourra de toute façon jamais s'y
+# connecter en XMPP tant que ce n'est pas corrigé (cf. bloc Prosody ci-dessus).
+if [ "$PROSODY_OK" -ne 1 ]; then
+    warn "JVB : vérification sautée (Prosody non confirmé à l'écoute — JVB ne peut pas s'y connecter)"
     FAILED=1
+else
+    info "Attente JVB prêt (max ${JVB_HEALTH_TIMEOUT}s sur $JVB_HEALTH_URL)..."
+    elapsed=0
+    jvb_status="000"
+    while [ "$elapsed" -lt "$JVB_HEALTH_TIMEOUT" ]; do
+        jvb_status=$(curl -s -o /dev/null -w "%{http_code}" "$JVB_HEALTH_URL" 2>/dev/null || echo "000")
+        [ "$jvb_status" = "200" ] && break
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+
+    if [ "$jvb_status" = "200" ]; then
+        log "JVB prêt (HTTP 200 après ${elapsed}s)"
+    else
+        err "JVB non disponible après ${JVB_HEALTH_TIMEOUT}s (dernier code HTTP : $jvb_status)"
+        case "$JITSI_MODE" in
+            docker)  err "  → Diagnostiquer : docker logs jvb --tail=100" ;;
+            systemd) err "  → Diagnostiquer : journalctl -u jitsi-videobridge2 -n 100 --no-pager" ;;
+        esac
+        FAILED=1
+    fi
 fi
 
 # --- Web (frontend nginx) : 443 en priorité, 80 en repli ---
