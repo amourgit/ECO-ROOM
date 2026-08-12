@@ -1,0 +1,250 @@
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-surprise.mp3 HTTP/1.1" 206 9094 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-surprise.mp3 HTTP/1.1" 206 9094 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-boo.mp3 HTTP/1.1" 206 9457 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-boo.mp3 HTTP/1.1" 206 9457 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-boo.mp3 HTTP/1.1" 206 9457 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-crickets.mp3 HTTP/1.1" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-crickets.mp3 HTTP/1.1" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-crickets.mp3 HTTP/1.1" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-love.mp3 HTTP/1.1" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-love.mp3 HTTP/1.1" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-love.mp3 HTTP/1.1" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/reactions-raised-hand.mp3 HTTP/1.1" 206 8418 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/rejected.mp3 HTTP/1.1" 206 7222 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/rejected.mp3 HTTP/1.1" 206 7222 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/outgoingRinging.mp3 HTTP/1.1" 206 3816 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/outgoingStart.mp3 HTTP/1.1" 206 12657 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/noisyAudioInput.mp3 HTTP/1.1" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/talkWhileMuted.mp3 HTTP/1.1" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:26 +0100] "GET /sounds/noAudioSignal.mp3 HTTP/1.1" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:36 +0100] "GET / HTTP/1.1" 200 8689 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:39 +0100] "GET /xmpp-websocket?room=kimkim-act HTTP/1.1" 200 375 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:44 +0100] "GET /libs/lib-jitsi-meet.min.map HTTP/1.1" 200 4078096 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:44 +0100] "GET /libs/app.bundle.min.js.map HTTP/1.1" 200 13837156 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:55 +0100] "GET /kimkum HTTP/1.1" 200 8689 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:56 +0100] "GET /libs/app.bundle.min.js.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:56 +0100] "GET /lang/languages.json HTTP/1.1" 200 869 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:56 +0100] "GET /lang/countries-fr.json HTTP/1.1" 200 2629 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:56 +0100] "GET /libs/chunks/4690.min.js HTTP/1.1" 200 439415 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:56 +0100] "GET /pwa-worker.js HTTP/1.1" 200 1511 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:39:58 +0100] "GET /libs/lib-jitsi-meet.min.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:06 +0100] "GET /kimkum HTTP/1.1" 200 8689 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /libs/app.bundle.min.js.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /lang/main-fr.json HTTP/1.1" 200 33182 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /lang/languages.json HTTP/1.1" 200 869 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /lang/countries-fr.json HTTP/1.1" 200 2629 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /lang/translation-languages.json HTTP/1.1" 200 1030 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /images/apple-touch-icon.png HTTP/1.1" 200 17146 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /images/favicon.svg?v=1 HTTP/1.1" 200 8696 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /libs/chunks/4690.min.js HTTP/1.1" 200 439415 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:07 +0100] "GET /pwa-worker.js HTTP/1.1" 200 1511 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:08 +0100] "GET /libs/lib-jitsi-meet.min.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:10 +0100] "GET /xmpp-websocket?room=kimkim-act HTTP/1.1" 200 375 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:17 +0100] "GET /kimkum HTTP/1.1" 200 8689 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:18 +0100] "GET /libs/app.bundle.min.js.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:18 +0100] "GET /libs/chunks/4690.min.js HTTP/1.1" 200 439415 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:18 +0100] "GET /pwa-worker.js HTTP/1.1" 200 1511 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:40:19 +0100] "GET /libs/lib-jitsi-meet.min.map HTTP/1.1" 304 0 "" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:41:08 +0100] "GET /xmpp-websocket?room=kimkim-act HTTP/1.1" 200 375 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:41:50 +0100] "GET /xmpp-websocket?room=kimkim-act HTTP/1.1" 200 375 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+web-1  | 172.20.0.2 - - [12/Aug/2026:11:42:35 +0100] "GET /xmpp-websocket?room=kimkim-act HTTP/1.1" 200 375 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-boo.mp3 HTTP/2.0" 206 9457 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-boo.mp3 HTTP/2.0" 206 9457 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-crickets.mp3 HTTP/2.0" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-crickets.mp3 HTTP/2.0" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-crickets.mp3 HTTP/2.0" 206 14163 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-love.mp3 HTTP/2.0" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-love.mp3 HTTP/2.0" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-love.mp3 HTTP/2.0" 206 15528 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/reactions-raised-hand.mp3 HTTP/2.0" 206 8418 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/rejected.mp3 HTTP/2.0" 206 7222 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/rejected.mp3 HTTP/2.0" 206 7222 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/outgoingRinging.mp3 HTTP/2.0" 206 3816 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/outgoingStart.mp3 HTTP/2.0" 206 12657 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/noisyAudioInput.mp3 HTTP/2.0" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/talkWhileMuted.mp3 HTTP/2.0" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:26 +0000] "GET /sounds/noAudioSignal.mp3 HTTP/2.0" 206 3114 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:36 +0000] "GET / HTTP/2.0" 200 8676 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 172.20.0.1 - - [12/Aug/2026:10:39:39 +0000] "GET /xmpp-websocket?room=kimkim-act HTTP/2.0" 200 363 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:44 +0000] "GET /libs/lib-jitsi-meet.min.map HTTP/2.0" 200 4078096 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 2026/08/12 10:39:44 [warn] 22#22: *131 an upstream response is buffered to a temporary file /var/cache/nginx/proxy_temp/2/00/0000000002 while reading upstream, client: 192.168.1.77, server: meet.civitas.local, request: "GET /libs/app.bundle.min.js.map HTTP/2.0", upstream: "http://172.20.0.12:8000/libs/app.bundle.min.js.map", host: "192.168.1.64"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:44 +0000] "GET /libs/app.bundle.min.js.map HTTP/2.0" 200 13837156 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:55 +0000] "GET /kimkum HTTP/2.0" 200 8676 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+prosody-1      | 2026-08-12 11:42:49 c2s55a7307cebd0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:49 c2s55a7307cebd0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:49 c2s55a7307cebd0                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:49 c2s55a732ea4390                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:49 c2s55a732ea4390                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a732ea4390                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a73538c030                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a73538c030                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a733d80770                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a73538c030                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a7337f4be0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a733d80770                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a7337f4be0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a733d80770                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a7337f4be0                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c8800                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c8800                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c8800                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c7d20                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c7d20                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a7336c7d20                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a731083e00                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a731083e00                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a731083e00                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a72f90ddf0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:50 c2s55a72f90ddf0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:50 c2s55a72f90ddf0                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:50 c2s55a73148dc40                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a73148dc40                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a73148dc40                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a733550e70                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a72fdee6b0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a733550e70                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a72fdee6b0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a733550e70                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a734677290                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a72fdee6b0                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a734677290                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a734677290                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a730678ab0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a730678ab0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a730678ab0                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a731e92c10                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a731e92c10                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a731e92c10                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a735cc0a40                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a735cc0a40                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+prosody-1      | 2026-08-12 11:42:51 c2s55a735cc0a40                                  info	Client disconnected: connection closed
+prosody-1      | 2026-08-12 11:42:51 c2s55a733e5a9d0                                  info	Client connected
+prosody-1      | 2026-08-12 11:42:51 c2s55a733e5a9d0                                  info	Stream encrypted (TLSv1.3 with TLS_AES_256_GCM_SHA384)
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /libs/olm.wasm HTTP/2.0" 499 0 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /libs/app.bundle.min.js.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /lang/languages.json HTTP/2.0" 200 857 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /lang/countries-fr.json HTTP/2.0" 200 2617 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /lang/translation-languages.json HTTP/2.0" 499 0 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /libs/chunks/4690.min.js HTTP/2.0" 200 439290 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:56 +0000] "GET /pwa-worker.js HTTP/2.0" 200 1499 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:39:58 +0000] "GET /libs/lib-jitsi-meet.min.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:06 +0000] "GET /kimkum HTTP/2.0" 200 8676 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /libs/app.bundle.min.js.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /lang/main-fr.json HTTP/2.0" 200 33169 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /lang/languages.json HTTP/2.0" 200 857 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /lang/countries-fr.json HTTP/2.0" 200 2617 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /lang/translation-languages.json HTTP/2.0" 200 1018 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /images/apple-touch-icon.png HTTP/2.0" 200 17146 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /images/favicon.svg?v=1 HTTP/2.0" 499 0 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /libs/chunks/4690.min.js HTTP/2.0" 200 439290 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:07 +0000] "GET /pwa-worker.js HTTP/2.0" 200 1499 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:08 +0000] "GET /libs/lib-jitsi-meet.min.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 172.20.0.1 - - [12/Aug/2026:10:40:10 +0000] "GET /xmpp-websocket?room=kimkim-act HTTP/2.0" 200 363 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:17 +0000] "GET /kimkum HTTP/2.0" 200 8676 "https://192.168.1.64/" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:18 +0000] "GET /libs/app.bundle.min.js.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:18 +0000] "GET /libs/chunks/4690.min.js HTTP/2.0" 200 439290 "https://192.168.1.64/kimkum" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:18 +0000] "GET /pwa-worker.js HTTP/2.0" 200 1499 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 192.168.1.77 - - [12/Aug/2026:10:40:19 +0000] "GET /libs/lib-jitsi-meet.min.map HTTP/2.0" 304 0 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 172.20.0.1 - - [12/Aug/2026:10:41:08 +0000] "GET /xmpp-websocket?room=kimkim-act HTTP/2.0" 200 363 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 172.20.0.1 - - [12/Aug/2026:10:41:50 +0000] "GET /xmpp-websocket?room=kimkim-act HTTP/2.0" 200 363 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+civitas-nginx  | 172.20.0.1 - - [12/Aug/2026:10:42:35 +0000] "GET /xmpp-websocket?room=kimkim-act HTTP/2.0" 200 363 "https://meet.civitas.local/kimkim-act" "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jvb-1          | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jvb-1          | JVB 2026-08-12 11:42:51.607 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connectionClosed#370: Closed.
+jvb-1          | JVB 2026-08-12 11:42:51.730 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connected#338: Connected. isSmEnabled:false isSmAvailable:false isSmResumptionPossible:false
+jvb-1          | JVB 2026-08-12 11:42:51.730 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#703: Logging in.
+jvb-1          | JVB 2026-08-12 11:42:51.747 WARNING: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#717: Failed to login. Disconnecting to trigger a re-connect.
+jvb-1          | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jvb-1          | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jvb-1          | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jvb-1          | JVB 2026-08-12 11:42:51.770 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connectionClosed#370: Closed.
+jvb-1          | JVB 2026-08-12 11:42:51.886 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connected#338: Connected. isSmEnabled:false isSmAvailable:false isSmResumptionPossible:false
+jvb-1          | JVB 2026-08-12 11:42:51.886 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#703: Logging in.
+jvb-1          | JVB 2026-08-12 11:42:51.902 WARNING: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#717: Failed to login. Disconnecting to trigger a re-connect.
+jvb-1          | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jvb-1          | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jvb-1          | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jvb-1          | JVB 2026-08-12 11:42:51.927 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connectionClosed#370: Closed.
+jvb-1          | JVB 2026-08-12 11:42:52.042 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient$2.connected#338: Connected. isSmEnabled:false isSmAvailable:false isSmResumptionPossible:false
+jvb-1          | JVB 2026-08-12 11:42:52.042 INFO: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#703: Logging in.
+jvb-1          | JVB 2026-08-12 11:42:52.059 WARNING: [33] [hostname=xmpp.meet.jitsi id=shard0] MucClient.lambda$getConnectAndLoginCallable$8#717: Failed to login. Disconnecting to trigger a re-connect.
+jvb-1          | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jvb-1          | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jvb-1          | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jvb-1          | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jvb-1          | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jvb-1          | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jicofo-1       | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jicofo-1       | Jicofo 2026-08-12 11:42:48.314 WARNING: [29] [xmpp_connection=client] XmppProvider.scheduleConnectTask$lambda$3$lambda$2#113: Failed to connect, will re-try after 1 second
+jicofo-1       | Jicofo 2026-08-12 11:42:49.285 INFO: [29] [xmpp_connection=client] XmppProvider.doConnect#206: Connected, JID=null
+jicofo-1       | Jicofo 2026-08-12 11:42:49.303 SEVERE: [29] [xmpp_connection=client] XmppProvider.doConnect#219: Failed to connect/login: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jicofo-1       | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jicofo-1       | Jicofo 2026-08-12 11:42:49.326 WARNING: [29] [xmpp_connection=client] XmppProvider.scheduleConnectTask$lambda$3$lambda$2#113: Failed to connect, will re-try after 1 second
+jicofo-1       | Jicofo 2026-08-12 11:42:50.278 INFO: [29] [xmpp_connection=client] XmppProvider.doConnect#206: Connected, JID=null
+jicofo-1       | Jicofo 2026-08-12 11:42:50.294 SEVERE: [29] [xmpp_connection=client] XmppProvider.doConnect#219: Failed to connect/login: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jicofo-1       | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jicofo-1       | Jicofo 2026-08-12 11:42:50.316 WARNING: [29] [xmpp_connection=client] XmppProvider.scheduleConnectTask$lambda$3$lambda$2#113: Failed to connect, will re-try after 1 second
+jicofo-1       | Jicofo 2026-08-12 11:42:51.283 INFO: [29] [xmpp_connection=client] XmppProvider.doConnect#206: Connected, JID=null
+jicofo-1       | Jicofo 2026-08-12 11:42:51.301 SEVERE: [29] [xmpp_connection=client] XmppProvider.doConnect#219: Failed to connect/login: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | org.jivesoftware.smack.sasl.SASLErrorException: SASLError using SCRAM-SHA-1: not-authorized
+jicofo-1       | 	at org.jivesoftware.smack.SASLAuthentication.authenticationFailed(SASLAuthentication.java:286)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.lambda$new$2(AbstractXMPPConnection.java:406)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.accept(NonzaCallback.java:177)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback$ClassAndConsumer.access$200(NonzaCallback.java:166)
+jicofo-1       | 	at org.jivesoftware.smack.NonzaCallback.onNonzaReceived(NonzaCallback.java:46)
+jicofo-1       | 	at org.jivesoftware.smack.AbstractXMPPConnection.parseAndProcessNonza(AbstractXMPPConnection.java:1439)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection.access$1700(XMPPTCPConnection.java:131)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.parsePackets(XMPPTCPConnection.java:1010)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader.access$700(XMPPTCPConnection.java:916)
+jicofo-1       | 	at org.jivesoftware.smack.tcp.XMPPTCPConnection$PacketReader$1.run(XMPPTCPConnection.java:939)
+jicofo-1       | 	at java.base/java.lang.Thread.run(Thread.java:1583)
+jicofo-1       | Jicofo 2026-08-12 11:42:51.326 WARNING: [29] [xmpp_connection=client] XmppProvider.scheduleConnectTask$lambda$3$lambda$2#113: Failed to connect, will re-try after 1 second

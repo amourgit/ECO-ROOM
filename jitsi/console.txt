@@ -1,0 +1,348 @@
+2026-08-12T10:36:45.875Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96886 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.877Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.878Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96890 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.879Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.879Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96892 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.880Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.881Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96893 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.881Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.882Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96894 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.882Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.883Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96895 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.883Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.883Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96895 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.885Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.885Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96896 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.885Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.885Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96897 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.885Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.886Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96898 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.886Z [INFO] [xmpp:Xmpp] <disconnect>:  XMPP disconnect triggered by the event=beforeunload lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.886Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnecting:	 96899 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.889Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.889Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96901 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.889Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.889Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96901 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.890Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.890Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96902 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.890Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.890Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96902 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.890Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.891Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96903 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.891Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.891Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96903 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.891Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.891Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96904 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.892Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.892Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96904 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.892Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.892Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96905 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.893Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.893Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96906 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.894Z [INFO] [xmpp:strophe.ping] <stopInterval>:  Ping interval cleared lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:45.894Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe disconnected:	 96906 lib-jitsi-meet.min.js:2:719569
+This page is in Quirks Mode. Page layout may be impacted. For Standards Mode use “<!DOCTYPE html>”. kimkim-act
+(TIME) index.html loaded:	 485 kimkim-act:72:17
+2026-08-12T10:36:46.961Z [LOG] [app:index.web] (TIME) document ready:	 1087 app.bundle.min.js:2:25903
+(TIME) window loaded event:	 1091 kimkim-act:75:21
+Service worker registered. 
+ServiceWorkerRegistration { installing: null, waiting: null, active: ServiceWorker, navigationPreload: NavigationPreloadManager, scope: "https://meet.civitas.local/", updateViaCache: "imports", onupdatefound: null, pushManager: PushManager, cookies: CookieStoreManager }
+kimkim-act:55:33
+2026-08-12T10:36:47.091Z [INFO] [app:redux] <persistState>:  redux state persisted. 26d19fd9547c5b6dd08c558dd9ce908a -> 7483c1a7cc007e0e00d117762a77c57f app.bundle.min.js:2:25903
+2026-08-12T10:36:47.142Z [DEBUG] [ui:VideoLayout] <updateLargeVideo>:  Ignoring large video update with user id local: large video not initialized yet! app.bundle.min.js:2:25903
+2026-08-12T10:36:47.154Z [INFO] [core:JitsiMeetJS] <init>:  This appears to be firefox, ver: 140.0 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.155Z [INFO] [stats:LocalStatsCollector] <connectAudioContext>:  Connecting audio context lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.155Z [INFO] [rtc:RTCUtils] <init>:  Disable AP: false lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.155Z [INFO] [rtc:RTCUtils] <init>:  Disable AGC: false lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.155Z [INFO] [rtc:RTCUtils] <init>:  Stereo: false lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.157Z [DEBUG] [connectivity:NetworkInfo] <updateNetworkInfo>:  updateNetworkInfo 
+Object { isOnline: true }
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.157Z [INFO] [app:lib-jitsi-meet] lib-jitsi-meet version: edf33a3b app.bundle.min.js:2:25903
+2026-08-12T10:36:47.157Z [INFO] [app:lib-jitsi-meet] User Agent: Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.165Z [LOG] [app:media] Start muted: video app.bundle.min.js:2:25903
+2026-08-12T10:36:47.173Z [LOG] [app:media] Start audio only set to false app.bundle.min.js:2:25903
+2026-08-12T10:36:47.173Z [DEBUG] [stats:AnalyticsAdapter] <dispose>:  Disposing of analytics adapter. lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.174Z [INFO] [app:analytics] <r<>:  Initialized 0 analytics handlers app.bundle.min.js:2:25903
+2026-08-12T10:36:47.354Z [DEBUG] [app:conference] <_start/<>:  (TIME) init action dispatched: 1481 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.567Z [INFO] [rtc:RTCUtils] <_onMediaDevicesListChanged>:  list of media devices has changed: 
+Array [ MediaDeviceInfo ]
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.568Z [DEBUG] [rtc:RTCUtils] <721/init/<>:  Available devices:  
+Array [ MediaDeviceInfo ]
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:47.713Z [DEBUG] [app:devices] <Iz>:  Ignored devices on device list changed::
+audioInput:
+
+audioOutput:
+
+videoInput:
+app.bundle.min.js:2:25903
+2026-08-12T10:36:47.713Z [DEBUG] [app:devices] <Iz>:  Device list updated:
+audioInput:
+		[]
+audioOutput:
+
+videoInput:
+app.bundle.min.js:2:25903
+2026-08-12T10:36:47.727Z [DEBUG] [app:devices] <H7/</<>:  (TIME) configureInitialDevices: deviceLabels=false, performance.now=1853 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.728Z [DEBUG] [app:devices] <H7/</</<>:  (TIME) configureInitialDevices -> setAudioOutputDeviceId: performance.now=1855 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.730Z [DEBUG] [app:devices] <Dz>:  setAudioOutputDevice: undefined[default] app.bundle.min.js:2:25903
+2026-08-12T10:36:47.803Z [WARN] [app:devices] <H7/</</</<>:  Failed to set audio output device.
+                        Default audio output device will be used instead NotFoundError: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:47.804Z [DEBUG] [app:conference] <H7/<>:  (TIME) setupInitialDevices finished: 1930 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.804Z [DEBUG] [app:conference-web] <init>:  Executed conference.init with roomName: kimkim-act (performance.now=1931) app.bundle.min.js:2:25903
+2026-08-12T10:36:47.875Z [DEBUG] [app:conference-web] <init>:  (TIME) createInitialLocalTracks: 2002 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.880Z [DEBUG] [app:tracks] <Sc/<>:  (TIME) loadEffects() start=2007, end=2007, time=0 app.bundle.min.js:2:25903
+2026-08-12T10:36:47.886Z [INFO] [rtc:RTCUtils] <721/obtainAudioAndVideoPermissions/s<>:  Got media constraints:  {"video":false,"audio":{"autoGainControl":true,"echoCancellation":true,"noiseSuppression":true}} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:48.001Z [INFO] [rtc:RTCUtils] <721/_getUserMedia/</<>:  onUserMediaSuccess lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:48.002Z [DEBUG] [app:conference-web] <init/<>:  (TIME) createInitialLocalTracks finished: 2128 app.bundle.min.js:2:25903
+2026-08-12T10:36:48.023Z [INFO] [app:settings] switched local audio input device to: cpBwKCylAJK+Vgi8L7cq/qgGHJ1cmReNsmvyGgWqdR8= app.bundle.min.js:2:25903
+2026-08-12T10:36:48.024Z [DEBUG] [app:conference-web] <init/<>:  Resolving the initialGUM promise! (prejoinVisible=true) app.bundle.min.js:2:25903
+2026-08-12T10:36:48.024Z [DEBUG] [app:conference-web] <init/<>:  Clear the initialGUM promise! (prejoinVisible=true) app.bundle.min.js:2:25903
+2026-08-12T10:36:48.773Z [INFO] [rtc:RTCUtils] <_onMediaDevicesListChanged>:  list of media devices has changed: 
+Array(3) [ MediaDeviceInfo, MediaDeviceInfo, MediaDeviceInfo ]
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:48.778Z [DEBUG] [app:devices] <Iz>:  Ignored devices on device list changed::
+audioInput:
+
+audioOutput:
+
+videoInput:
+app.bundle.min.js:2:25903
+2026-08-12T10:36:48.784Z [DEBUG] [app:devices] <Iz>:  Device list updated:
+audioInput:
+		Built-in Audio Analog Stereo[cpBwKCylAJK+Vgi8L7cq/qgGHJ1cmReNsmvyGgWqdR8=]
+		Monitor of Built-in Audio Analog Stereo[xOlYEffBKFmrriDz8IMXpmdL2BDK4X9DwpWRebRqmQY=]
+audioOutput:
+		Built-in Audio Analog Stereo[CJEVTQDX25vZw3ygiPs2dIaaJORXOFo9NP2pRTO9BZw=]
+videoInput:
+app.bundle.min.js:2:25903
+2026-08-12T10:36:48.843Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.846Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.849Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.850Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.854Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.855Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.857Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.859Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.861Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.865Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.866Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.867Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.871Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.871Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.872Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.873Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.877Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.883Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.886Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.887Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.892Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.893Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.894Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.895Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.895Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.900Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.905Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.909Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.910Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.912Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.914Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.916Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.916Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.917Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.917Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.919Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.921Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.922Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.925Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.927Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.928Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.931Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.931Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:48.932Z [ERROR] [app:media] <setSinkId/<>:  Error setting sink DOMException: The object can not be found here. app.bundle.min.js:2:25903
+2026-08-12T10:36:49.090Z [INFO] [app:redux] <persistState>:  redux state persisted. 7483c1a7cc007e0e00d117762a77c57f -> 358b6cdc77aa93a427e473e7b1b3fbe1 app.bundle.min.js:2:25903
+2026-08-12T10:36:54.772Z [INFO] [app:prejoin] <onClick>:  Prejoin join button clicked. app.bundle.min.js:2:25903
+2026-08-12T10:36:54.780Z [INFO] [app:prejoin] <CP/<>:  Dispatching connect from joinConference. app.bundle.min.js:2:25903
+2026-08-12T10:36:54.788Z [LOG] [app:connection] <f5/</o<>:  Using service URL wss://meet.civitas.local/xmpp-websocket app.bundle.min.js:2:25903
+2026-08-12T10:36:54.790Z [INFO] [xmpp:Moderator] <Bc>:  Using xmpp for conference requests. lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.790Z [INFO] [xmpp:Xmpp] <_initStrophePlugins>:  P2P STUN servers:  
+Array [ {…} ]
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.795Z [DEBUG] [xmpp:Xmpp] <initFeaturesList>:  Source-name signaling is enabled lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.795Z [DEBUG] [xmpp:Xmpp] <initFeaturesList>:  Receiving multiple video streams is enabled lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.801Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe connecting:	 8928 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.961Z [INFO] [xmpp:XmppConnection] <_maybeEnableStreamResume>:  Enabling XEP-0198 stream management lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.961Z [INFO] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  WebSocket keep alive interval: 60000ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.962Z [DEBUG] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  Scheduling next WebSocket keep-alive in 5000ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.962Z [INFO] [xmpp:strophe.ping] <startInterval>:  XMPP pings will be sent every 10000 ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.962Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe connected:	 9089 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.963Z [INFO] [xmpp:Xmpp] <connectionHandler>:  My Jabber ID: bf8dce51-9576-40c1-8958-c39451b93ca1@meet.jitsi/g-z4Zve8BIcB lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.968Z [INFO] [app:dialog] <vg>:  Hide dialog: LoginDialog app.bundle.min.js:2:25903
+2026-08-12T10:36:54.972Z [DEBUG] [app:base-conference] On connection established: prejoinVisible: true, initialGUMPromiseExists=false, promiseExists=true app.bundle.min.js:2:25903
+2026-08-12T10:36:54.976Z [INFO] [xmpp:Xmpp] <createRoom>:  JID bf8dce51-9576-40c1-8958-c39451b93ca1@meet.jitsi/g-z4Zve8BIcB using MUC nickname bf8dce51 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.978Z [INFO] [xmpp:ChatRoom] <pl>:  Joining MUC as kimkim-act@muc.meet.jitsi/bf8dce51 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.987Z [INFO] [qc:CodecSelection] <oh>:  Codec preference order for jvb connection is vp8,h264,av1,vp9 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.988Z [INFO] [qc:CodecSelection] <oh>:  Codec preference order for p2p connection is av1,vp8,h264,vp9 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.989Z [INFO] [stats:AvgRTPStatsReporter] <xh>:  Avg RTP stats will be calculated every 15 samples lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.989Z [INFO] [core:JitsiConference] <am>:  backToP2PDelay: 5 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.989Z [DEBUG] [videosipgw:VideoSIPGW] <Qh>:  creating VideoSIPGW lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.992Z [INFO] [core:JitsiConference] <_doReplaceTrack>:  _doReplaceTrack - no JVB JingleSession lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.993Z [INFO] [core:JitsiConference] <_doReplaceTrack>:  _doReplaceTrack - no P2P JingleSession lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:54.998Z [INFO] [app:jwt] JWT avatarURL temporarily not loaded till jwt is verified on connect app.bundle.min.js:2:25903
+2026-08-12T10:36:55.003Z [INFO] [app:dialog] <vg>:  Hide dialog: undefined app.bundle.min.js:2:25903
+2026-08-12T10:36:55.008Z [DEBUG] [app:utils] <_executeNext>:  Executing a task. app.bundle.min.js:2:25903
+2026-08-12T10:36:55.008Z [DEBUG] [app:utils] <_onTaskComplete>:  Task completed. app.bundle.min.js:2:25903
+2026-08-12T10:36:55.010Z [INFO] [xmpp:Moderator] <721/sendConferenceRequest/<>:  Sending conference request over XMPP to focus.meet.jitsi lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.012Z [LOG] [app:conference-web] <_setLocalAudioVideoStreams/<>:  Initialized with 1 local tracks app.bundle.min.js:2:25903
+2026-08-12T10:36:55.129Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","domain":"meet.jitsi","operation":"get STUN/TURN credentials (extdisco:2)","userJid":"bf8dce51-9576-40c1-8958-c39451b93ca1@meet.jitsi/g-z4Zve8BIcB","xmlns":"urn:xmpp:extdisco:2"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.135Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/<>:  getting turn credentials with extdisco:2 failed, trying extdisco:1 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.170Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","mode":"xmpp","operation":"conference request (IQ)","roomJid":"kimkim-act@muc.meet.jitsi","targetJid":"focus.meet.jitsi","userJid":"bf8dce51-9576-40c1-8958-c39451b93ca1@meet.jitsi/g-z4Zve8BIcB"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.171Z [ERROR] [xmpp:Moderator] <_handleError>:  Failed to get a successful response, giving up. lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.172Z [DEBUG] [stats:statistics] <sendAnalyticsAndLog>:  {"action":"connection.failed","attributes":{"error_type":"connection.conferenceRequestFailed"},"type":"operational"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.202Z [INFO] [app:dialog] <vg>:  Hide dialog: PasswordRequiredPrompt app.bundle.min.js:2:25903
+2026-08-12T10:36:55.210Z [INFO] [app:dialog] <vg>:  Hide dialog: undefined app.bundle.min.js:2:25903
+2026-08-12T10:36:55.222Z [INFO] [qc:QualityController] <dispose>:  QualityController disposed, all timeouts cleared lib-jitsi-meet.min.js:2:719569
+console.trace() 2026-08-12T10:36:55.223Z [TRACE] [xmpp:ChatRoom] <721/join/</<>:  PreJoin rejected undefined lib-jitsi-meet.min.js:2:719569
+    r Logger.js:158
+    join ChatRoom.ts:475
+    (Async: promise callback)
+    join ChatRoom.ts:475
+    join ChatRoom.ts:454
+    join JitsiConference.ts:2649
+    connect conference.js:351
+    startConference conference.js:524
+    startConference conference.js:523
+    <anonymous> middleware.web.ts:188
+    (Async: promise callback)
+    <anonymous> middleware.web.ts:182
+    (Async: promise callback)
+    <anonymous> middleware.web.ts:166
+    <anonymous> middleware.any.ts:320
+    <anonymous> middleware.any.ts:60
+    <anonymous> middleware.ts:158
+    <anonymous> middleware.ts:154
+    <anonymous> middleware.any.ts:37
+    <anonymous> middleware.ts:112
+    <anonymous> middleware.web.ts:226
+    <anonymous> middleware.web.ts:123
+    <anonymous> middleware.any.ts:39
+    <anonymous> middleware.web.ts:56
+    <anonymous> middleware.any.ts:38
+    <anonymous> middleware.ts:33
+    <anonymous> middleware.web.ts:65
+    <anonymous> middleware.ts:18
+    <anonymous> middleware.web.ts:10
+    <anonymous> middleware.ts:28
+    <anonymous> middleware.ts:176
+    <anonymous> middleware.ts:13
+    <anonymous> middleware.ts:72
+    <anonymous> middleware.web.ts:70
+    <anonymous> middleware.ts:9
+    <anonymous> middleware.tsx:12
+    <anonymous> middleware.ts:12
+    <anonymous> middleware.ts:135
+    <anonymous> middleware.tsx:17
+    <anonymous> middleware.web.ts:57
+    <anonymous> middleware.ts:37
+    <anonymous> middleware.ts:56
+    <anonymous> middleware.ts:99
+2026-08-12T10:36:55.225Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","domain":"meet.jitsi","operation":"get STUN/TURN credentials (extdisco:1)","userJid":"bf8dce51-9576-40c1-8958-c39451b93ca1@meet.jitsi/g-z4Zve8BIcB","xmlns":"urn:xmpp:extdisco:1"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.226Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/</<>:  getting turn credentials failed lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.226Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/</<>:  is mod_turncredentials or similar installed and configured? lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:55.303Z [DEBUG] [ui:videolayout] <scheduleLargeVideoUpdate/<>:  Scheduled large video update for local app.bundle.min.js:2:25903
+2026-08-12T10:36:55.303Z [DEBUG] [ui:VideoContainer] <setStream>:  SetStream on the large video is called without a stream argument! app.bundle.min.js:2:25903
+2026-08-12T10:36:55.305Z [DEBUG] [ui:videolayout] <scheduleLargeVideoUpdate/<>:  scheduleLargeVideoUpdate: Remote track undefined, isVideoMuted=true, streamingStatusActive=false, isVideoRenderable=false, showAvatar=true app.bundle.min.js:2:25903
+2026-08-12T10:36:57.799Z [INFO] [app:prejoin] <onClick>:  Prejoin join button clicked. app.bundle.min.js:2:25903
+2026-08-12T10:36:57.802Z [INFO] [app:prejoin] <CP/<>:  Dispatching connect from joinConference. app.bundle.min.js:2:25903
+2026-08-12T10:36:57.803Z [LOG] [app:connection] <f5/</o<>:  Using service URL wss://meet.civitas.local/xmpp-websocket app.bundle.min.js:2:25903
+2026-08-12T10:36:57.803Z [INFO] [xmpp:Moderator] <Bc>:  Using xmpp for conference requests. lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.804Z [INFO] [xmpp:Xmpp] <_initStrophePlugins>:  P2P STUN servers:  
+Array [ {…} ]
+lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.807Z [DEBUG] [xmpp:Xmpp] <initFeaturesList>:  Source-name signaling is enabled lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.807Z [DEBUG] [xmpp:Xmpp] <initFeaturesList>:  Receiving multiple video streams is enabled lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.812Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe connecting:	 11939 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.949Z [INFO] [xmpp:XmppConnection] <_maybeEnableStreamResume>:  Enabling XEP-0198 stream management lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.949Z [INFO] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  WebSocket keep alive interval: 60000ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.950Z [DEBUG] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  Scheduling next WebSocket keep-alive in 5000ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.950Z [INFO] [xmpp:strophe.ping] <startInterval>:  XMPP pings will be sent every 10000 ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.950Z [INFO] [xmpp:Xmpp] <connectionHandler>:  (TIME) Strophe connected:	 12077 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.951Z [INFO] [xmpp:Xmpp] <connectionHandler>:  My Jabber ID: 27f9fc60-53e9-4523-aacf-099ee883ffdd@meet.jitsi/UAXnlJZWDoIt lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.952Z [INFO] [app:dialog] <vg>:  Hide dialog: LoginDialog app.bundle.min.js:2:25903
+2026-08-12T10:36:57.955Z [DEBUG] [app:base-conference] On connection established: prejoinVisible: true, initialGUMPromiseExists=false, promiseExists=true app.bundle.min.js:2:25903
+2026-08-12T10:36:57.957Z [INFO] [xmpp:Xmpp] <createRoom>:  JID 27f9fc60-53e9-4523-aacf-099ee883ffdd@meet.jitsi/UAXnlJZWDoIt using MUC nickname 27f9fc60 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.957Z [INFO] [xmpp:ChatRoom] <pl>:  Joining MUC as kimkim-act@muc.meet.jitsi/27f9fc60 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.958Z [INFO] [qc:CodecSelection] <oh>:  Codec preference order for jvb connection is vp8,h264,av1,vp9 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.961Z [INFO] [qc:CodecSelection] <oh>:  Codec preference order for p2p connection is av1,vp8,h264,vp9 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.961Z [INFO] [stats:AvgRTPStatsReporter] <xh>:  Avg RTP stats will be calculated every 15 samples lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.962Z [INFO] [core:JitsiConference] <am>:  backToP2PDelay: 5 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.962Z [DEBUG] [videosipgw:VideoSIPGW] <Qh>:  creating VideoSIPGW lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.964Z [INFO] [core:JitsiConference] <_doReplaceTrack>:  _doReplaceTrack - no JVB JingleSession lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.964Z [INFO] [core:JitsiConference] <_doReplaceTrack>:  _doReplaceTrack - no P2P JingleSession lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.976Z [INFO] [app:dialog] <vg>:  Hide dialog: undefined app.bundle.min.js:2:25903
+2026-08-12T10:36:57.979Z [DEBUG] [app:utils] <_executeNext>:  Executing a task. app.bundle.min.js:2:25903
+2026-08-12T10:36:57.979Z [DEBUG] [app:utils] <_onTaskComplete>:  Task completed. app.bundle.min.js:2:25903
+2026-08-12T10:36:57.980Z [INFO] [xmpp:Moderator] <721/sendConferenceRequest/<>:  Sending conference request over XMPP to focus.meet.jitsi lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:57.982Z [LOG] [app:conference-web] <_setLocalAudioVideoStreams/<>:  Initialized with 1 local tracks app.bundle.min.js:2:25903
+2026-08-12T10:36:58.018Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","domain":"meet.jitsi","operation":"get STUN/TURN credentials (extdisco:2)","userJid":"27f9fc60-53e9-4523-aacf-099ee883ffdd@meet.jitsi/UAXnlJZWDoIt","xmlns":"urn:xmpp:extdisco:2"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.019Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/<>:  getting turn credentials with extdisco:2 failed, trying extdisco:1 lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.043Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","mode":"xmpp","operation":"conference request (IQ)","roomJid":"kimkim-act@muc.meet.jitsi","targetJid":"focus.meet.jitsi","userJid":"27f9fc60-53e9-4523-aacf-099ee883ffdd@meet.jitsi/UAXnlJZWDoIt"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.044Z [ERROR] [xmpp:Moderator] <_handleError>:  Failed to get a successful response, giving up. lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.044Z [DEBUG] [stats:statistics] <sendAnalyticsAndLog>:  {"action":"connection.failed","attributes":{"error_type":"connection.conferenceRequestFailed"},"type":"operational"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.051Z [INFO] [app:dialog] <vg>:  Hide dialog: PasswordRequiredPrompt app.bundle.min.js:2:25903
+2026-08-12T10:36:58.058Z [INFO] [app:dialog] <vg>:  Hide dialog: undefined app.bundle.min.js:2:25903
+2026-08-12T10:36:58.070Z [INFO] [qc:QualityController] <dispose>:  QualityController disposed, all timeouts cleared lib-jitsi-meet.min.js:2:719569
+console.trace() 2026-08-12T10:36:58.070Z [TRACE] [xmpp:ChatRoom] <721/join/</<>:  PreJoin rejected undefined lib-jitsi-meet.min.js:2:719569
+    r Logger.js:158
+    join ChatRoom.ts:475
+    (Async: promise callback)
+    join ChatRoom.ts:475
+    join ChatRoom.ts:454
+    join JitsiConference.ts:2649
+    connect conference.js:351
+    startConference conference.js:524
+    startConference conference.js:523
+    <anonymous> middleware.web.ts:188
+    (Async: promise callback)
+    <anonymous> middleware.web.ts:182
+    (Async: promise callback)
+    <anonymous> middleware.web.ts:166
+    <anonymous> middleware.any.ts:320
+    <anonymous> middleware.any.ts:60
+    <anonymous> middleware.ts:158
+    <anonymous> middleware.ts:154
+    <anonymous> middleware.any.ts:37
+    <anonymous> middleware.ts:112
+    <anonymous> middleware.web.ts:226
+    <anonymous> middleware.web.ts:123
+    <anonymous> middleware.any.ts:39
+    <anonymous> middleware.web.ts:56
+    <anonymous> middleware.any.ts:38
+    <anonymous> middleware.ts:33
+    <anonymous> middleware.web.ts:65
+    <anonymous> middleware.ts:18
+    <anonymous> middleware.web.ts:10
+    <anonymous> middleware.ts:28
+    <anonymous> middleware.ts:176
+    <anonymous> middleware.ts:13
+    <anonymous> middleware.ts:72
+    <anonymous> middleware.web.ts:70
+    <anonymous> middleware.ts:9
+    <anonymous> middleware.tsx:12
+    <anonymous> middleware.ts:12
+    <anonymous> middleware.ts:135
+    <anonymous> middleware.tsx:17
+    <anonymous> middleware.web.ts:57
+    <anonymous> middleware.ts:37
+    <anonymous> middleware.ts:56
+    <anonymous> middleware.ts:99
+2026-08-12T10:36:58.071Z [ERROR] [xmpp:StropheErrorHandler] <Lc>:  Strophe error: {"reason":"service-unavailable","raw":"<error xmlns=\"jabber:client\" type=\"cancel\"><service-unavailable xmlns=\"urn:ietf:params:xml:ns:xmpp-stanzas\"/></error>","domain":"meet.jitsi","operation":"get STUN/TURN credentials (extdisco:1)","userJid":"27f9fc60-53e9-4523-aacf-099ee883ffdd@meet.jitsi/UAXnlJZWDoIt","xmlns":"urn:xmpp:extdisco:1"} lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.072Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/</<>:  getting turn credentials failed lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.072Z [WARN] [xmpp:strophe.jingle] <721/getStunAndTurnCredentials/</<>:  is mod_turncredentials or similar installed and configured? lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:36:58.265Z [DEBUG] [ui:videolayout] <scheduleLargeVideoUpdate/<>:  Scheduled large video update for local app.bundle.min.js:2:25903
+2026-08-12T10:36:58.270Z [DEBUG] [ui:VideoContainer] <setStream>:  SetStream on the large video for user local ignored: the stream is not changed! app.bundle.min.js:2:25903
+2026-08-12T10:36:58.270Z [DEBUG] [ui:videolayout] <scheduleLargeVideoUpdate/<>:  scheduleLargeVideoUpdate: Remote track undefined, isVideoMuted=true, streamingStatusActive=false, isVideoRenderable=false, showAvatar=true app.bundle.min.js:2:25903
+2026-08-12T10:37:00.020Z [DEBUG] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  Scheduling next WebSocket keep-alive in 71145.9418618076ms lib-jitsi-meet.min.js:2:719569
+2026-08-12T10:37:02.970Z [DEBUG] [xmpp:XmppConnection] <_maybeStartWSKeepAlive>:  Scheduling next WebSocket keep-alive in 92333.82462813705ms lib-jitsi-meet.min.js:2:719569
