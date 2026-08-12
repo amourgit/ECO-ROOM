@@ -167,6 +167,62 @@ EOF
     log "Répertoires CONFIG prêts (storage/ et tmp/ inscriptibles par uid 1000)"
 }
 
+# --- Auto-résynchronisation des comptes Prosody avec .env (avant démarrage) -
+#
+# Racine du problème observé en usage réel (§7.5 du plan) : Prosody
+# n'enregistre les comptes XMPP internes (jicofo, jvb) qu'UNE FOIS dans son
+# stockage persistant. Si JICOFO_AUTH_PASSWORD/JVB_AUTH_PASSWORD changent
+# ensuite dans .env (gen-passwords.sh relancé, ${CONFIG} réutilisé d'un
+# essai précédent...) sans purge manuelle, les comptes stockés restent sur
+# l'ANCIEN mot de passe -> SASL not-authorized en boucle, invisible tant
+# qu'on ne regarde pas les logs Jicofo/JVB en détail.
+#
+# Cette fonction élimine le besoin de s'en souvenir : à CHAQUE démarrage,
+# avant que Prosody ne tourne, elle compare une empreinte des mots de passe
+# actuels de .env à celle enregistrée lors du dernier démarrage réussi
+# (fichier caché dans ${CONFIG}/storage/prosody, qui persiste avec les
+# comptes). Si elles diffèrent, elle purge automatiquement le stockage
+# Prosody AVANT le démarrage — Prosody recrée alors les comptes avec les
+# valeurs actuelles, sans aucune intervention manuelle.
+#
+# Sans empreinte enregistrée (premier démarrage avec cette fonction, sur un
+# stockage déjà ancien) : ne touche à rien par prudence — c'est le seul cas
+# qui nécessite encore un `jitsi_reset_prosody.sh` manuel, une fois.
+# Ensuite, l'empreinte est systématiquement à jour et le problème ne peut
+# plus se reproduire silencieusement.
+sync_prosody_accounts_with_env() {
+    local jitsi_dir="$1" env_file config_dir prosody_storage fp_file current_fp stored_fp
+    env_file="$jitsi_dir/.env"
+    [[ -f "$env_file" ]] || return 0  # ensure_jitsi_docker_config_dirs aura déjà échoué avant, rien à faire ici
+
+    config_dir=$(grep -E '^CONFIG=' "$env_file" | tail -1 | cut -d= -f2-)
+    [[ -n "$config_dir" ]] || return 0
+    config_dir="${config_dir/#\~/$HOME}"
+    prosody_storage="$config_dir/storage/prosody"
+    fp_file="$prosody_storage/.civitas_auth_fingerprint"
+
+    current_fp=$(grep -E '^(JICOFO_AUTH_PASSWORD|JVB_AUTH_PASSWORD)=' "$env_file" | sort | sha256sum | cut -d' ' -f1)
+    [[ -n "$current_fp" ]] || return 0  # mots de passe pas encore générés (gen-passwords.sh pas encore lancé)
+
+    if [[ -f "$fp_file" ]]; then
+        stored_fp=$(cat "$fp_file" 2>/dev/null || true)
+        if [[ -n "$stored_fp" && "$stored_fp" != "$current_fp" ]]; then
+            warn "Mots de passe XMPP (.env) différents de ceux déjà enregistrés dans Prosody"
+            warn "  → Purge automatique de $prosody_storage pour resynchroniser (cf. §7.5 du plan)"
+            # docker compose stop est un no-op sûr si prosody n'est pas (encore)
+            # démarré (cas normal, cette fonction s'exécute avant le premier
+            # "up") — mais protège aussi le cas d'une resynchronisation
+            # déclenchée alors que le conteneur tournait déjà : on ne purge
+            # jamais son stockage à chaud.
+            ( cd "$jitsi_dir" && docker compose stop prosody ) 2>/dev/null
+            rm -rf --one-file-system -- "${prosody_storage:?}"/* "${prosody_storage:?}"/.[!.]* 2>/dev/null
+        fi
+    fi
+
+    mkdir -p "$prosody_storage" && chmod 777 "$prosody_storage"
+    echo "$current_fp" > "$fp_file" 2>/dev/null || true
+}
+
 # --- Vérification réelle de l'écoute Prosody sur le port XMPP ---------------
 #
 # Deux niveaux de preuve, dans l'ordre :
@@ -266,6 +322,13 @@ reset_prosody_account_storage() {
     rm -rf --one-file-system -- "${prosody_storage:?}"/* "${prosody_storage:?}"/.[!.]* 2>/dev/null
     mkdir -p "$prosody_storage" && chmod 777 "$prosody_storage" \
         || die "Échec de la recréation de $prosody_storage"
+
+    # Réécrit l'empreinte tout de suite : le stockage est vide, donc les
+    # comptes que Prosody va recréer correspondront forcément au .env
+    # actuel — cf. sync_prosody_accounts_with_env(), qui se fie à ce fichier
+    # aux démarrages suivants pour ne plus jamais avoir besoin de ce script.
+    grep -E '^(JICOFO_AUTH_PASSWORD|JVB_AUTH_PASSWORD)=' "$env_file" | sort | sha256sum | cut -d' ' -f1 \
+        > "$prosody_storage/.civitas_auth_fingerprint" 2>/dev/null || true
 
     info "Redémarrage de Prosody (comptes recréés depuis $env_file)..."
     ( cd "$jitsi_dir" && docker compose up -d prosody ) \

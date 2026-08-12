@@ -96,6 +96,14 @@ case "$JITSI_MODE" in
         # cf. scripts/lib/jitsi_common.sh::ensure_jitsi_docker_config_dirs
         ensure_jitsi_docker_config_dirs "$JITSI_DIR"
 
+        # Auto-résync : si .env a changé depuis le dernier démarrage réussi
+        # (gen-passwords.sh relancé, ${CONFIG} réutilisé...), purge les
+        # comptes Prosody obsolètes AVANT de démarrer plutôt que de laisser
+        # Jicofo/JVB échouer en boucle avec SASL not-authorized — cf. §7.5
+        # de PLAN_SYNCHRONISATION_ROOMS_JITSI.md et
+        # scripts/lib/jitsi_common.sh::sync_prosody_accounts_with_env
+        sync_prosody_accounts_with_env "$JITSI_DIR"
+
         info "docker compose up -d (dans $JITSI_DIR)..."
         if ! ( cd "$JITSI_DIR" && docker compose up -d ); then
             die "Échec du démarrage des conteneurs Jitsi.

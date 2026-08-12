@@ -506,6 +506,31 @@ détectée automatiquement à l'avenir, au lieu d'un faux "succès") :**
   conférence pour répondre). D'où le choix de fiabiliser spécifiquement
   le check Jicofo plutôt que celui de JVB.
 
+**Mise à jour du 2026-08-12 (re-test) — le problème est réapparu à
+l'identique** (logs `jitsi/logs.txt`/`jitsi/console.txt` versés au dépôt) :
+Jicofo/JVB toujours en SASL `not-authorized`, et côté navigateur la requête
+XMPP de création de conférence vers `focus.meet.jitsi` échoue en
+`service-unavailable` — preuve directe, côté utilisateur, que Jicofo
+n'existe tout simplement pas en tant que composant XMPP aux yeux de
+Prosody (il n'a jamais réussi à s'y authentifier). C'est la cause exacte
+de "impossible de rejoindre une réunion créée soi-même" : le navigateur se
+connecte bien à Prosody (compte anonyme), mais personne ne répond côté
+Jicofo pour créer la conférence.
+
+Plutôt que de compter sur l'exécution manuelle de `jitsi_reset_prosody.sh`
+à chaque fois que `.env` change, une **auto-résynchronisation** a été
+ajoutée : `sync_prosody_accounts_with_env()` calcule une empreinte
+(SHA-256) de `JICOFO_AUTH_PASSWORD`+`JVB_AUTH_PASSWORD`, la compare à
+celle enregistrée lors du dernier démarrage réussi (fichier caché dans
+`${CONFIG}/storage/prosody`, donc persistant avec les comptes), et purge
+automatiquement le stockage Prosody **avant** `docker compose up -d` si
+elles diffèrent — sans purger à chaud si Prosody tournait déjà. Appelée
+systématiquement par `jitsi_boot.sh`. Testée unitairement (création,
+non-purge si identique, purge si différent, empreinte mise à jour).
+Seul cas encore manuel : la toute première exécution sur un stockage déjà
+ancien (aucune empreinte de référence) — d'où la nécessité de lancer
+`jitsi_reset_prosody.sh` une dernière fois pour "amorcer" le mécanisme.
+
 ---
 
 ## Journal des mises à jour
