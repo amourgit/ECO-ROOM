@@ -391,9 +391,50 @@ curl -s "http://192.168.1.89:8010/rooms/salle-42/history?limit=200" \
 
 ---
 
+### POST /rooms/reserve
+
+**Flux recommandé** pour créer une room CIVITAS (cf.
+`PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §3-4/§8.2). Jitsi/Prosody ne
+proposant aucune API de pré-provisioning de room (confirmé — une room MUC
+n'existe qu'une fois qu'un premier participant l'a réellement rejointe),
+cet endpoint réserve les métadonnées CIVITAS avec `status: "pending"`. Le
+statut ne passe à `"confirmed"` (`jitsi_confirmed_at` renseigné) que
+lorsqu'un événement Jitsi réel est reçu pour ce `room_id` — en pratique,
+au premier appel de `GET /rooms/{room_id}/context`, lui-même déclenché
+uniquement par un vrai événement `muc-room-created` (via room-spawner).
+
+```bash
+curl -s -X POST http://192.168.1.89:8010/rooms/reserve \
+  -H "Authorization: Bearer civitas-room-config-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "room_id": "ma-salle-custom",
+    "agent_name": "ALEX",
+    "system_prompt": "Tu es ALEX, assistant spécialisé en DevOps.",
+    "can_moderate": false,
+    "peer_enabled": true
+  }' | python3 -m json.tool
+```
+
+**Corps de requête (RoomReserveRequest) :** mêmes champs que
+`RoomConfigCreate` (voir `POST /rooms/` ci-dessous), sans `is_active`.
+
+**Réponse (201 Created) :** `RoomConfigResponse` avec `"status": "pending"`,
+`"source": "manager_api_reserved"`, `"jitsi_confirmed_at": null`.
+
+Idempotent : si `room_id` existe déjà, retourne la ligne existante sans la
+modifier (quel que soit son statut actuel).
+
+---
+
 ### POST /rooms/
 
-Crée une nouvelle configuration de room.
+⚠️ **Legacy** — crée une config immédiatement `"confirmed"` **sans aucune
+vérification** qu'une room Jitsi réelle correspond à ce `room_id`.
+Conservé pour rétrocompatibilité uniquement (`"source":
+"manager_api_legacy"` dans la réponse, pour distinguer ces lignes des
+créations vérifiées) — **préférer `POST /rooms/reserve`** pour tout
+nouvel usage.
 
 ```bash
 curl -s -X POST http://192.168.1.89:8010/rooms/ \
@@ -410,6 +451,7 @@ curl -s -X POST http://192.168.1.89:8010/rooms/ \
     "can_use_tools": true,
     "can_use_rag": false,
     "can_moderate": false,
+    "peer_enabled": true,
     "invocation_keywords": ["alex", "assistant"],
     "tools_allowed": ["docker", "kubectl"],
     "extra_config": {},
@@ -430,7 +472,8 @@ curl -s -X POST http://192.168.1.89:8010/rooms/ \
 | `can_write_chat` | bool | non | `true` | Écrit dans le chat |
 | `can_use_tools` | bool | non | `false` | Accès outils |
 | `can_use_rag` | bool | non | `false` | Accès base de connaissances |
-| `can_moderate` | bool | non | `false` | Peut modérer |
+| `can_moderate` | bool | non | `false` | Peut modérer (cf. §3 Room Spawner /moderator/kick,mute) |
+| `peer_enabled` | bool | non | `true` | Présence du peer autorisée (bascule `/moderator/inject,eject`) |
 | `invocation_keywords` | string[] | non | `["civitas"]` | Mots-clés déclencheurs |
 | `tools_allowed` | string[] | non | `[]` | Outils autorisés |
 | `extra_config` | object | non | `{}` | Config additionnelle libre |
@@ -682,6 +725,93 @@ curl -s -X POST http://192.168.1.89:8011/moderator/activate \
 
 ---
 
+### POST /moderator/kick
+
+Exclut un participant de la **room Jitsi réelle** — via les mêmes API
+`JitsiConference` que le bouton "Kick" de l'interface Jitsi elle-même
+(pas une simulation). Cf. `PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §8.9.
+
+**Prérequis** : `can_moderate: true` sur la config de la room (côté
+CIVITAS) **et** le peer doit avoir le rôle `moderator` dans la room Jitsi
+au moment de l'appel (côté Jitsi — accordé par défaut au premier
+participant à rejoindre, souvent un humain). Vérifier
+`GET /moderator/status/{room_id}` en cas de doute.
+
+`participant_id` s'obtient via `GET /moderator/status/{room_id}` (son
+propre ID) ou via les événements Kafka `jitsi.participant.events`
+(occupant_jid, mappé côté peer sur l'ID interne Jitsi du participant).
+
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/kick \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "salle-42", "participant_id": "a1b2c3d4", "reason": "Comportement inapproprié"}' \
+  | python3 -m json.tool
+```
+
+**Réponse JSON (succès) :**
+```json
+{"allowed": true, "ok": true}
+```
+
+**Réponse JSON (bloqué côté CIVITAS — can_moderate désactivé) :**
+```json
+{"allowed": false, "ok": false, "error": "can_moderate désactivé pour cette room"}
+```
+
+**Réponse JSON (rejeté par Jitsi — peer pas modérateur) :**
+```json
+{"allowed": true, "ok": false, "error": "..."}
+```
+
+---
+
+### POST /moderator/mute
+
+Coupe le micro d'un participant à distance dans la **room Jitsi réelle**
+— `JitsiConference.muteParticipant(id, 'audio')`. Restriction **volontaire
+de Jitsi** (confidentialité), pas une limite CIVITAS : ne peut jamais
+réactiver le micro d'un participant à sa place, seulement le couper —
+seule la personne concernée peut se réactiver elle-même. Mêmes prérequis
+que `/moderator/kick`.
+
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/mute \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "salle-42", "participant_id": "a1b2c3d4"}' \
+  | python3 -m json.tool
+```
+
+**Réponse JSON :** même format que `/moderator/kick`.
+
+---
+
+### GET /moderator/status/{room_id}
+
+État réel du peer dans la room — à consulter avant d'attendre un succès
+de `/moderator/kick` ou `/moderator/mute`.
+
+```bash
+curl -s http://192.168.1.89:8011/moderator/status/salle-42 \
+  -H "Authorization: Bearer civitas-peer-token" | python3 -m json.tool
+```
+
+**Réponse JSON :**
+```json
+{
+  "can_moderate": true,
+  "participant_id": "9f8e7d6c",
+  "role": "participant",
+  "is_moderator": false
+}
+```
+`can_moderate` = permission CIVITAS (config de la room) ; `is_moderator` =
+rôle Jitsi effectif à l'instant T. Les deux doivent être `true` pour que
+`/moderator/kick`/`/moderator/mute` aient un effet réel.
+
+---
+
 ## 4. Peer Service (:8002)
 
 Base URL : `http://192.168.1.89:8002`  
@@ -856,6 +986,47 @@ curl -s -X POST http://192.168.1.89:8002/peer/salle-42/send_chat \
 {
   "status": "sent"
 }
+```
+
+---
+
+### POST /peer/{room_id}/kick
+
+Niveau bas-niveau (par room) de `POST /moderator/kick` (room-spawner, §3)
+— utilisé directement par room-spawner, rarement appelé en direct. Mêmes
+prérequis, mêmes formats de réponse. Cf. `PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §8.9.
+
+```bash
+curl -s -X POST http://192.168.1.89:8002/peer/salle-42/kick \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"participant_id": "a1b2c3d4", "reason": "Comportement inapproprié"}' \
+  | python3 -m json.tool
+```
+
+---
+
+### POST /peer/{room_id}/mute
+
+Niveau bas-niveau de `POST /moderator/mute` (room-spawner, §3).
+
+```bash
+curl -s -X POST http://192.168.1.89:8002/peer/salle-42/mute \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"participant_id": "a1b2c3d4"}' \
+  | python3 -m json.tool
+```
+
+---
+
+### GET /peer/{room_id}/moderator_status
+
+Niveau bas-niveau de `GET /moderator/status/{room_id}` (room-spawner, §3).
+
+```bash
+curl -s http://192.168.1.89:8002/peer/salle-42/moderator_status \
+  -H "Authorization: Bearer civitas-peer-token" | python3 -m json.tool
 ```
 
 ---

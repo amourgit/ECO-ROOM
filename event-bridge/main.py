@@ -2,12 +2,13 @@
 CIVITAS — Jitsi Event Bridge v2
 Reçoit les webhooks Prosody et publie sur Kafka avec enrichissement complet.
 """
+import hmac
 import json
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from aiokafka import AIOKafkaProducer
 
 from config import get_settings
@@ -112,7 +113,26 @@ async def _publish_presence(room_id: str):
 
 
 @app.post("/webhook")
-async def webhook(request: Request):
+async def webhook(
+    request: Request,
+    x_civitas_webhook_secret: str | None = Header(default=None),
+):
+    """
+    Reçoit les événements MUC de Prosody (mod_muc_webhook, cf.
+    jitsi/prosody-plugins-custom/mod_muc_webhook.lua).
+
+    AVANT : aucune authentification — n'importe qui sur le réseau LAN
+    pouvait POSTer directement ici et injecter de fausses rooms/participants
+    dans tout le pipeline CIVITAS (le port 8100 est publié sur l'hôte, cf.
+    docker-compose.yml). Cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md.
+    Comparaison à temps constant (hmac.compare_digest) pour éviter une
+    fuite d'information par timing sur le secret.
+    """
+    if not x_civitas_webhook_secret or not hmac.compare_digest(
+        x_civitas_webhook_secret, settings.WEBHOOK_SECRET
+    ):
+        raise HTTPException(status_code=401, detail="Secret webhook invalide ou absent")
+
     try:
         body = await request.json()
     except Exception:

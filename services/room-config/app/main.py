@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import init_db
+from app.database import init_db, run_migrations
 from app.routers import rooms, health
 from app.kafka import consumer as history_consumer
 from app.config import get_settings
@@ -21,7 +21,9 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     log.info("[RoomConfig] Démarrage — initialisation base de données...")
     init_db()
-    log.info("[RoomConfig] Base de données prête ✓")
+    log.info("[RoomConfig] Tables prêtes ✓ — application des migrations...")
+    run_migrations()
+    log.info("[RoomConfig] Migrations à jour ✓")
     await history_consumer.start()
     yield
     log.info("[RoomConfig] Arrêt")

@@ -4,14 +4,20 @@
 # Ce fichier est VENDORED depuis le projet officiel jitsi/docker-jitsi-meet
 # (https://github.com/jitsi/docker-jitsi-meet), quasiment tel quel — c'est
 # la BASE, CIVITAS n'en est qu'une extension qui s'y connecte, jamais une
-# duplication ou une simulation. Une seule modification volontaire, marquée
-# "AJOUT CIVITAS" ci-dessous : un alias réseau sur le service "web" pour que
-# les conteneurs CIVITAS le résolvent nativement (meet.civitas.local), sans
-# jamais toucher au comportement de Jitsi lui-même.
+# duplication ou une simulation. Écarts volontaires par rapport à l'upstream,
+# chacun marqué "AJOUT CIVITAS" à l'endroit concerné :
+#   - alias réseau civitas-net sur "web" (résolution native par les
+#     conteneurs CIVITAS) et sur "nginx" (meet.civitas.local, TLS)
+#   - civitas-net sur "prosody" (event-bridge reçoit les webhooks MUC —
+#     cf. jitsi/prosody-plugins-custom/mod_muc_webhook.lua — sans cet accès
+#     réseau ils ne peuvent physiquement jamais l'atteindre)
+#   - depends_on: [web] sur "nginx" (résolution du nom "web" au chargement)
+# Le reste de ce fichier reste vendored tel quel, pour rester upgradable
+# sans divergence (cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md, §7).
 #
 # Mise à jour depuis l'upstream : comparer avec la dernière version de
 # https://github.com/jitsi/docker-jitsi-meet/blob/master/docker-compose.yml
-# et ne réappliquer que le bloc "AJOUT CIVITAS" après un `git diff`.
+# et ne réappliquer que les blocs "AJOUT CIVITAS" après un `git diff`.
 #
 # Configuration : copier jitsi/.env.example vers jitsi/.env, générer les
 # mots de passe (./gen-passwords.sh), voir PLAN_SYNCHRONISATION_ROOMS_JITSI.md
@@ -421,6 +427,13 @@ services:
             meet.jitsi:
                 aliases:
                     - ${XMPP_SERVER:-xmpp.meet.jitsi}
+            # AJOUT CIVITAS — sans ce réseau, mod_muc_webhook.lua (chargé via
+            # XMPP_MUC_MODULES, cf. .env.example) ne peut PHYSIQUEMENT pas
+            # atteindre civitas-event-bridge:8100 : Prosody n'était jusqu'ici
+            # que sur "meet.jitsi", jamais sur civitas-net. Tout événement de
+            # room/participant était donc silencieusement perdu (échec HTTP,
+            # juste un warning en log Prosody, jamais fatal ni visible).
+            civitas-net:
 
     # Focus component
     jicofo:

@@ -15,7 +15,10 @@ async def health():
 
     return {
         "service": "room-config",
-        "status": "ok",
+        # AVANT : toujours "ok" même si la DB était en erreur (db_status
+        # n'était jamais répercuté ici) — un monitoring qui ne regarde que
+        # ce champ racine ne détectait jamais une panne DB.
+        "status": "ok" if db_status == "ok" else "degraded",
         "database": db_status,
         "version": "1.0.0",
     }

@@ -34,10 +34,18 @@ async def is_peer_enabled(room_id: str) -> bool:
 
 
 async def set_peer_enabled(room_id: str, enabled: bool) -> bool:
+    """
+    Écrit directement dans la colonne dédiée `peer_enabled` (PATCH accepte ce
+    champ au niveau racine — cf. RoomConfigUpdate). AVANT : écrivait dans
+    extra_config.peer_enabled, jamais lu de là (is_peer_enabled lit
+    permissions.peer_enabled) — donc sans effet réel — ET remplaçait tout
+    extra_config au passage (perte de données silencieuse pour toute autre
+    clé déjà présente). Corrigé — cf. §2.3/§7.5 PLAN_SYNCHRONISATION_ROOMS_JITSI.md.
+    """
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.patch(
             f"{settings.ROOM_CONFIG_URL}/rooms/{room_id}",
             headers=HEADERS,
-            json={"extra_config": {"peer_enabled": enabled}},
+            json={"peer_enabled": enabled},
         )
         return r.status_code == 200

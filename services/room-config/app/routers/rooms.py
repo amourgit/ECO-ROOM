@@ -7,6 +7,7 @@ from app.schemas.room_config import (
     RoomConfigCreate,
     RoomConfigUpdate,
     RoomConfigResponse,
+    RoomReserveRequest,
     AgentContextResponse,
 )
 from app.schemas.room_history import RoomHistoryResponse
@@ -34,7 +35,9 @@ def get_agent_context(
     """
     Endpoint principal utilisé par le peer au démarrage.
     Retourne le contexte complet de l'agent pour cette room.
-    Crée une config par défaut si elle n'existe pas.
+    Crée une config par défaut si elle n'existe pas — et c'est aussi ICI que
+    toute réservation "pending" est promue "confirmed" dès qu'une preuve
+    réelle d'usage Jitsi arrive (cf. services/room_config_service.py).
     """
     config = svc.get_or_create_default(db, room_id)
     return svc.build_agent_context(config)
@@ -84,12 +87,35 @@ def get_room(
     return config
 
 
+@router.post("/reserve", response_model=RoomConfigResponse, status_code=201)
+def reserve_room(
+    data: RoomReserveRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token),
+):
+    """
+    Flux recommandé pour créer une room CIVITAS (cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md
+    §3-4) : réserve les métadonnées avec status="pending". Jitsi/Prosody
+    n'offrant pas de pré-provisioning de room (Cas A confirmé), le statut ne
+    passe à "confirmed" que lorsqu'un événement Jitsi réel est reçu pour ce
+    room_id (dès que quelqu'un rejoint effectivement l'URL de la room).
+    """
+    return svc.reserve_room_config(db, data)
+
+
 @router.post("/", response_model=RoomConfigResponse, status_code=201)
 def create_room(
     data: RoomConfigCreate,
     db: Session = Depends(get_db),
     _: str = Depends(verify_token),
 ):
+    """
+    ⚠️ Legacy — crée une config immédiatement "confirmed" SANS aucune
+    vérification qu'une room Jitsi réelle correspond à ce room_id (source de
+    "rooms fantômes", cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md §2.1). Conservé
+    pour rétrocompatibilité uniquement — préférer POST /rooms/reserve pour
+    tout nouvel usage.
+    """
     return svc.create_room_config(db, data)
 
 

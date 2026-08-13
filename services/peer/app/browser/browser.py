@@ -585,6 +585,114 @@ class CivitasBrowser:
         except Exception as e:
             log.error(f"[Browser:{self.room_id}] send_chat: {e}")
 
+    # ─────────────────────────────────────────────────────────────────
+    # Modération réelle — mêmes API que l'interface Jitsi elle-même
+    # (JitsiConference.kickParticipant/muteParticipant, via l'objet
+    # window.APP.conference._room, déjà utilisé ailleurs dans ce fichier
+    # pour getParticipantById/getParticipants). Pas de simulation : ce
+    # sont les mêmes appels que ceux déclenchés par les boutons "Kick"/
+    # "Mute" de l'UI web Jitsi — même mécanisme XMPP réel côté Prosody.
+    #
+    # PRÉREQUIS IMPORTANT (comportement Jitsi standard, pas une limite de
+    # cette implémentation) : ces actions n'ont d'effet QUE si le peer a
+    # lui-même le rôle "moderator" dans la room au moment de l'appel. Par
+    # défaut, Jitsi accorde ce rôle au PREMIER participant à rejoindre —
+    # si un humain a créé la room avant que le peer ne la rejoigne (le cas
+    # le plus courant : humain crée -> webhook -> peer rejoint ensuite),
+    # le peer rejoint comme participant normal, PAS modérateur, et ces
+    # appels échouent silencieusement côté Prosody (aucune erreur JS, la
+    # commande est simplement ignorée côté serveur). Toujours vérifier
+    # get_moderator_status() avant, et propager le résultat côté appelant
+    # plutôt que de supposer un succès.
+    # ─────────────────────────────────────────────────────────────────
+
+    async def get_moderator_status(self) -> dict:
+        """
+        Rôle réel du peer dans la room, à l'instant T (peut changer en
+        cours de réunion). JitsiParticipant.isModerator() compare le rôle
+        MUC local à "moderator" — API lib-jitsi-meet réelle, pas déduite.
+        """
+        try:
+            return await self._page.evaluate("""
+                () => {
+                    try {
+                        const room = window.APP?.conference?._room;
+                        if (!room) return { ok: false, error: 'room indisponible' };
+                        const myId = room.myUserId ? room.myUserId() : null;
+                        const me = myId ? room.getParticipantById(myId) : null;
+                        const role = me?.getRole ? me.getRole() : null;
+                        return { ok: true, participant_id: myId, role, is_moderator: role === 'moderator' };
+                    } catch (e) {
+                        return { ok: false, error: String(e && e.message || e) };
+                    }
+                }
+            """)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    async def kick_participant(self, participant_id: str, reason: str | None = None) -> dict:
+        """
+        Exclut un participant — JitsiConference.kickParticipant(id, reason).
+        Cf. prérequis modérateur ci-dessus.
+        """
+        try:
+            safe_reason = (reason or "").replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+            safe_id = participant_id.replace("\\", "\\\\").replace("'", "\\'")
+            result = await self._page.evaluate(f"""
+                () => {{
+                    try {{
+                        const room = window.APP?.conference?._room;
+                        if (!room) return {{ ok: false, error: 'room indisponible' }};
+                        room.kickParticipant('{safe_id}', `{safe_reason}`);
+                        return {{ ok: true }};
+                    }} catch (e) {{
+                        return {{ ok: false, error: String(e && e.message || e) }};
+                    }}
+                }}
+            """)
+            if result.get("ok"):
+                log.info(f"[Browser:{self.room_id}] Kick participant={participant_id} reason={reason!r}")
+            else:
+                log.warning(f"[Browser:{self.room_id}] Kick échoué participant={participant_id}: {result.get('error')}")
+            return result
+        except Exception as e:
+            log.error(f"[Browser:{self.room_id}] kick_participant: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def mute_participant(self, participant_id: str) -> dict:
+        """
+        Coupe le micro d'un participant à distance — JitsiConference.
+        muteParticipant(id, 'audio'). Restriction VOLONTAIRE de Jitsi
+        (confidentialité) : un modérateur peut couper un micro à distance
+        mais ne peut JAMAIS le réactiver à la place du participant — seule
+        la personne concernée peut se réactiver elle-même. Ce n'est pas une
+        limite de cette implémentation, c'est le comportement Jitsi
+        standard (aucune méthode "unmuteParticipant" n'existe côté API).
+        Cf. prérequis modérateur ci-dessus.
+        """
+        try:
+            safe_id = participant_id.replace("\\", "\\\\").replace("'", "\\'")
+            result = await self._page.evaluate(f"""
+                () => {{
+                    try {{
+                        const room = window.APP?.conference?._room;
+                        if (!room) return {{ ok: false, error: 'room indisponible' }};
+                        room.muteParticipant('{safe_id}', 'audio');
+                        return {{ ok: true }};
+                    }} catch (e) {{
+                        return {{ ok: false, error: String(e && e.message || e) }};
+                    }}
+                }}
+            """)
+            if result.get("ok"):
+                log.info(f"[Browser:{self.room_id}] Mute participant={participant_id}")
+            else:
+                log.warning(f"[Browser:{self.room_id}] Mute échoué participant={participant_id}: {result.get('error')}")
+            return result
+        except Exception as e:
+            log.error(f"[Browser:{self.room_id}] mute_participant: {e}")
+            return {"ok": False, "error": str(e)}
+
     async def capture_frame(self) -> str | None:
         try:
             import base64

@@ -336,6 +336,51 @@ class PeerInstance:
     async def send_chat(self, text: str):
         if self.browser: await self.browser.send_chat(text)
 
+    async def kick_participant(self, participant_id: str, reason: str | None = None) -> dict:
+        """
+        Vérifie can_moderate (permission CIVITAS, cf. RoomConfig) AVANT de
+        transmettre à la room réelle. Deux niveaux d'échec distincts,
+        propagés tels quels à l'appelant :
+          - allowed=False : bloqué côté CIVITAS (can_moderate désactivé
+            pour cette room) — n'a jamais atteint Jitsi.
+          - allowed=True mais ok=False : la commande a été envoyée à Jitsi
+            mais a échoué (le plus souvent : le peer n'a pas le rôle
+            "moderator" dans la room à cet instant — cf. get_moderator_status).
+        """
+        if not self.context.get("permissions", {}).get("can_moderate", False):
+            log.warning(f"[Peer:{self.room_id}] Kick refusé — can_moderate désactivé pour cette room")
+            return {"allowed": False, "ok": False, "error": "can_moderate désactivé pour cette room"}
+        if not self.browser:
+            return {"allowed": True, "ok": False, "error": "browser non initialisé"}
+        result = await self.browser.kick_participant(participant_id, reason)
+        return {"allowed": True, **result}
+
+    async def mute_participant(self, participant_id: str) -> dict:
+        """Même logique que kick_participant — cf. sa docstring."""
+        if not self.context.get("permissions", {}).get("can_moderate", False):
+            log.warning(f"[Peer:{self.room_id}] Mute refusé — can_moderate désactivé pour cette room")
+            return {"allowed": False, "ok": False, "error": "can_moderate désactivé pour cette room"}
+        if not self.browser:
+            return {"allowed": True, "ok": False, "error": "browser non initialisé"}
+        result = await self.browser.mute_participant(participant_id)
+        return {"allowed": True, **result}
+
+    async def moderator_status(self) -> dict:
+        """
+        État réel du peer dans la room à l'instant T — à consulter avant
+        d'attendre un succès de kick/mute. can_moderate=false ici signifie
+        que ces actions seront bloquées côté CIVITAS avant même d'atteindre
+        Jitsi ; is_moderator=false (si can_moderate=true) signifie que
+        Jitsi lui-même les rejettera (le peer n'est pas modérateur dans la
+        room — comportement standard : par défaut, Jitsi accorde ce rôle
+        au premier participant à rejoindre, souvent un humain).
+        """
+        can_moderate = self.context.get("permissions", {}).get("can_moderate", False)
+        if not self.browser:
+            return {"can_moderate": can_moderate, "is_moderator": None, "error": "browser non initialisé"}
+        status = await self.browser.get_moderator_status()
+        return {"can_moderate": can_moderate, **status}
+
     @property
     def room_snapshot(self) -> dict:
         return self.tracker.snapshot()

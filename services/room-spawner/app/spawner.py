@@ -100,17 +100,17 @@ async def set_peer_standby(room_id: str) -> dict:
     Met le peer en mode figurant — présent dans la room mais silencieux.
     Il écoute mais n'intervient jamais.
     """
-    async with httpx.AsyncClient(timeout=10) as c:
-        pass  # handled via room config behavior_mode=silent
-
-    from app.room_config_client import HEADERS
     import httpx
+    from app.room_config_client import HEADERS
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.patch(
             f"{settings.ROOM_CONFIG_URL}/rooms/{room_id}",
             headers=HEADERS,
             json={"behavior_mode": "silent"},
         )
+        if r.status_code != 200:
+            log.error(f"[Spawner] Échec mise en veille {room_id}: {r.status_code} {r.text}")
+            return {"status": "error", "room_id": room_id, "detail": "room-config PATCH failed"}
     log.info(f"[Spawner] Peer en veille (silent): {room_id}")
     return {"status": "standby", "room_id": room_id}
 

@@ -62,6 +62,17 @@ class RoomAction(BaseModel):
     room_id: str
 
 
+class KickAction(BaseModel):
+    room_id: str
+    participant_id: str
+    reason: str | None = None
+
+
+class MuteAction(BaseModel):
+    room_id: str
+    participant_id: str
+
+
 # ─────────────────────────────────────────────
 # Endpoints modérateur — contrôle manuel du peer
 # ─────────────────────────────────────────────
@@ -107,6 +118,48 @@ async def activate_peer(body: RoomAction, _: str = Depends(verify_token)):
             json={"behavior_mode": "on_call"},
         )
     return {"status": "activated", "room_id": body.room_id}
+
+
+# ─────────────────────────────────────────────
+# Contrôle des VRAIES rooms/participants Jitsi
+#
+# Ces endpoints pilotent la room Jitsi réelle via le peer déjà présent
+# dedans (mêmes API que l'interface Jitsi elle-même — JitsiConference.
+# kickParticipant/muteParticipant, cf. services/peer/app/browser/browser.py) —
+# jamais une simulation ou un état interne CIVITAS déconnecté de Jitsi.
+#
+# PRÉREQUIS : le peer doit avoir le rôle "moderator" dans la room au moment
+# de l'appel (comportement Jitsi standard : accordé par défaut au premier
+# participant à rejoindre, souvent un humain si le peer rejoint après via
+# le flux automatique). Toujours consulter /moderator/status en cas de
+# doute — un échec silencieux côté Jitsi n'est PAS une erreur HTTP, il
+# remonte comme {"ok": false, "error": ...} dans la réponse.
+# ─────────────────────────────────────────────
+
+@app.post("/moderator/kick")
+async def kick_participant(body: KickAction, _: str = Depends(verify_token)):
+    """Exclut un participant de la room Jitsi réelle."""
+    return await peer_client.kick_participant(body.room_id, body.participant_id, body.reason)
+
+
+@app.post("/moderator/mute")
+async def mute_participant(body: MuteAction, _: str = Depends(verify_token)):
+    """
+    Coupe le micro d'un participant à distance dans la room Jitsi réelle.
+    Ne peut jamais le réactiver à sa place (restriction Jitsi standard,
+    pas une limite CIVITAS) — seul le participant peut se réactiver lui-même.
+    """
+    return await peer_client.mute_participant(body.room_id, body.participant_id)
+
+
+@app.get("/moderator/status/{room_id}")
+async def moderator_status(room_id: str, _: str = Depends(verify_token)):
+    """
+    État réel du peer dans la room : can_moderate (permission CIVITAS) et
+    is_moderator (rôle Jitsi effectif à l'instant T). Les deux doivent être
+    vrais pour que /moderator/kick ou /moderator/mute aient un effet.
+    """
+    return await peer_client.moderator_status(room_id)
 
 
 # ─────────────────────────────────────────────

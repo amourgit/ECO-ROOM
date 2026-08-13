@@ -572,6 +572,249 @@ guide de démarrage).
 
 ---
 
+## 8. Audit complet des services CIVITAS (2026-08-13)
+
+Suite à §7 (Jitsi opérationnel), audit complet de tout le reste du dépôt —
+`event-bridge/`, `services/room-config/`, `services/room-spawner/`,
+`services/peer/` — avec tests réels (pas seulement une revue de code) et
+recherche systématique des API Jitsi/Prosody établies avant toute
+implémentation. Répond aux questions ouvertes du §6 et clôt les Phases
+1/2/3/5 du §5 laissées en attente de Phase 0.
+
+### 8.1 — Phase 0 : Cas A confirmé (répond à la question 1 du §6)
+
+Recherche dans la documentation Prosody/Jicofo officielle : aucune API de
+pré-provisioning de room n'existe côté Jicofo ou Prosody vanilla. Une room
+MUC est créée par Prosody de façon strictement implicite, au moment où le
+premier occupant rejoint (XEP-0045 standard) — jamais à l'avance via un
+appel API. **Cas A confirmé.** Les Phases 1 et 3 (statut `pending`/
+`confirmed`, confirmation par preuve réelle) sont la bonne réponse
+architecturale, maintenant implémentées (cf. 8.2).
+
+### 8.2 — Phases 1 et 3 : statut réel des rooms CIVITAS — implémenté et testé
+
+- `RoomConfig` (modèle + migration Alembic idempotente, cf. 8.6) : nouveaux
+  champs `status` (`pending`|`confirmed`), `source`
+  (`manager_api_legacy`|`manager_api_reserved`|`jitsi_event`),
+  `jitsi_confirmed_at`.
+- `POST /rooms/reserve` (nouveau, room-config) : crée en `pending` — flux
+  recommandé pour toute nouvelle intégration.
+- `POST /rooms/` (legacy, conservé rétrocompatible) : crée directement en
+  `confirmed`, `source=manager_api_legacy` — **jamais vérifié contre Jitsi
+  réel**, tracé comme tel pour audit futur. Répond à la question 3 du §6 :
+  les lignes déjà en base ont été migrées avec ce même statut par défaut
+  (`confirmed`), non destructif, plutôt que supprimées ou requalifiées
+  sans preuve.
+- Confirmation `pending` → `confirmed` : dans `get_or_create_default()`
+  (appelée par `GET /rooms/{id}/context`), qui n'est JAMAIS appelée
+  spéculativement — uniquement par `is_peer_enabled()` de room-spawner, en
+  réaction à un véritable événement `muc-room-created` reçu par Kafka. Pas
+  de nouveau consumer Kafka nécessaire : ce chemin existant suffit et est
+  strictement plus simple.
+- **Testé de bout en bout, en conditions réelles** (Postgres réel, serveur
+  FastAPI réel, pas de mock) : réservation → `pending` confirmé → appel
+  `/context` → promotion → `confirmed` + `jitsi_confirmed_at` renseigné.
+
+### 8.3 — Phase 5 : bug `peer_enabled` — implémenté et testé
+
+Confirmé exactement comme diagnostiqué en §2.3 : `set_peer_enabled()`
+écrivait dans `extra_config.peer_enabled` (en écrasant tout le reste
+d'`extra_config` au passage — perte de données silencieuse non documentée
+au §2.3) tandis que `is_peer_enabled()` lisait `permissions.peer_enabled`,
+qui n'existait nulle part → toujours `True` par défaut, quoi qu'un
+modérateur ait fait via `/moderator/eject`.
+
+Corrigé par une colonne dédiée `peer_enabled` sur `RoomConfig` (plutôt que
+« faire lire depuis `extra_config` », l'autre option du §5 Phase 5 — plus
+propre, typée, ne casse plus jamais `extra_config`). Testé de bout en
+bout : PATCH `peer_enabled=false` → relecture via `/context` → bien
+`false` dans `permissions.peer_enabled`.
+
+### 8.4 — Bug critique confirmé et corrigé : `set_peer_standby()` (room-spawner)
+
+Non répertorié dans le plan initial — trouvé à la lecture du code.
+`spawner.py::set_peer_standby()` référençait `httpx` avant son propre
+`import httpx` local (plus un bloc mort `async with httpx.AsyncClient(...):
+pass`) → **`UnboundLocalError` systématique à chaque appel**, testé et
+reproduit (`python3` isolé) avant correction. `/moderator/standby` (Test 4
+de `DOCUMENTATION_API.md`) était donc cassé à 100%. Corrigé, testé
+end-to-end avec Postgres/FastAPI réels (mock HTTP room-config) : succès.
+
+### 8.5 — Résilience Kafka room-spawner (Phase 2, §2.2b)
+
+`auto_offset_reset="latest"` + auto-commit implicite (jamais un consumer
+manuel comme celui de room-config) → tout événement transité pendant un
+redémarrage du service était définitivement perdu, et un crash pendant le
+traitement pouvait aussi en sauter un (auto-commit indépendant du succès
+du traitement). Corrigé : `earliest` + `enable_auto_commit=False` + commit
+uniquement après traitement réussi + reconnexion avec backoff exponentiel
+— même pattern déjà en place et éprouvé côté `room-config/app/kafka/consumer.py`.
+
+### 8.6 — Alembic mis en place pour room-config (absent jusqu'ici)
+
+`Base.metadata.create_all()` (seul mécanisme existant) ne modifie JAMAIS
+une table déjà existante — limite structurelle qui aurait rendu 8.2/8.3
+inapplicables sur une base déjà peuplée sans intervention manuelle.
+Alembic ajouté proprement : `env.py` lit `DATABASE_URL` depuis
+`app.config.get_settings()` (jamais dupliqué en dur dans `alembic.ini`),
+migration unique idempotente (`ADD COLUMN IF NOT EXISTS`) qui converge
+vers le même schéma qu'on parte d'une base fraîche (où `create_all()` a
+déjà tout créé) ou d'une base existante pré-migration. Exécutée
+automatiquement au démarrage (`run_migrations()` dans le lifespan
+FastAPI, juste après `create_all()`) — jamais besoin de s'en souvenir
+après un déploiement.
+
+**Testé en conditions réelles** (PostgreSQL 16 installé et démarré pour
+l'occasion) : (1) base simulant la prod existante avec une vraie ligne de
+données → migration → colonnes ajoutées, données intactes ; (2) base
+fraîche via `create_all()` → migration rejouée par-dessus → no-op sûr ;
+(3) ré-exécution sur base déjà migrée → no-op sûr.
+
+### 8.7 — event-bridge : webhook sans authentification, corrigé et testé
+
+`/webhook` (port 8100, publié sur l'hôte) acceptait n'importe quel POST
+sans aucune vérification — n'importe qui sur le réseau pouvait injecter de
+fausses rooms/participants dans tout le pipeline CIVITAS (Kafka,
+room-spawner, spawn de peers compris). Corrigé : secret partagé requis
+(header `X-Civitas-Webhook-Secret`, comparaison à temps constant
+`hmac.compare_digest`), configuré symétriquement côté Prosody
+(`muc_webhook_secret`) et event-bridge (`WEBHOOK_SECRET`). **Testé en
+conditions réelles** (serveur FastAPI réel, Kafka producer mocké) : sans
+secret → 401 ; mauvais secret → 401 ; bon secret → 200.
+
+### 8.8 — Module Prosody `mod_muc_webhook.lua` : trois bugs réels trouvés et corrigés
+
+Le fichier vendored (`nginx/jitsi-meet-host-backup/prosody-plugins/mod_muc_webhook.lua`,
+copie de l'installation native, jamais adapté) contenait trois bugs qui,
+ensemble, garantissaient qu'aucun événement Jitsi réel n'atteignait jamais
+event-bridge en Docker — expliquant a posteriori pourquoi le "Test 3" de
+`DOCUMENTATION_API.md` s'appelait explicitement *"sans Jitsi réel"* et
+POSTait directement sur `/webhook` :
+
+1. **URL par défaut `http://127.0.0.1:8100/webhook`** — valide seulement
+   en installation native (même hôte). En Docker, `127.0.0.1` dans le
+   conteneur `prosody` ne route jamais vers `event-bridge` (conteneur
+   séparé) : échec silencieux (connexion refusée, un warning en log,
+   jamais fatal).
+2. **Prosody n'était même pas sur `civitas-net`** — indépendamment de
+   l'URL configurée, `prosody` (service `jitsi/docker-compose.yml`)
+   n'était attaché qu'au réseau `meet.jitsi`, jamais à `civitas-net` où
+   vit `event-bridge`. Impossible à atteindre quelle que soit la
+   configuration applicative.
+3. **Champs envoyés ≠ champs lus** — le module envoyait `occupant =
+   occupant.nick` (qui, vérifié dans la doc Prosody officielle
+   [prosody.im/doc/developers/muc], est le JID COMPLET dans la room, pas
+   un pseudo) alors qu'event-bridge lit `occupant_jid`/`occupant_nick`/
+   `role`/`affiliation` — aucun nom ne correspondait. Tout événement de
+   présence retombait sur des valeurs vides, et plusieurs participants
+   distincts s'écrasaient dans le suivi de présence (clé `""` partagée).
+
+Corrigés dans une nouvelle version versionnée du dépôt —
+`jitsi/prosody-plugins-custom/mod_muc_webhook.lua` (à copier vers
+`${CONFIG}/prosody/prosody-plugins-custom/` au déploiement, `${CONFIG}`
+étant gitignored) :
+- URL par défaut Docker-correcte (`http://civitas-event-bridge:8100/webhook`)
+- `civitas-net` ajouté au service `prosody` (`jitsi/docker-compose.yml`)
+- Champs corrigés : `occupant_jid` = `occupant.bare_jid` (JID réel, stable),
+  `occupant_nick` extrait via `util.jid.split()` (API Prosody réelle),
+  `role` = `occupant.role`, `affiliation` = `room:get_affiliation(...)`
+  (API `room` officielle, pas un champ occupant direct — vérifié dans la
+  doc Prosody, pas deviné)
+- Secret partagé ajouté (header `X-Civitas-Webhook-Secret`)
+- Chargement documenté : `XMPP_MUC_MODULES=muc_webhook` +
+  `XMPP_MUC_CONFIGURATION` (seul point d'extension officiel Jitsi pour une
+  option non standard comme `muc_webhook_url`/`muc_webhook_secret`,
+  confirmé via jitsi/docker-jitsi-meet#PR503) — documenté dans
+  `jitsi/.env.example`.
+
+**Non ajouté volontairement** : deux hooks `muc-occupant-affiliation-changed`/
+`muc-occupant-role-changed` envisagés puis retirés — aucune source ne
+confirme que ce sont de vrais noms de hooks Prosody (recherche dédiée
+infructueuse). Mieux vaut s'en tenir aux 4 hooks confirmés (`muc-room-created`,
+`muc-room-destroyed`, `muc-occupant-joined`, `muc-occupant-left`) que
+d'inventer une API.
+
+**Non testable en conditions réelles dans cette session** (pas de Prosody
+vivant dans le bac à sable) : syntaxe validée (`luac5.4 -p`), cohérence
+des noms de champs validée par test Python réel côté event-bridge (8.7).
+La chaîne Prosody → event-bridge complète reste à valider sur le serveur
+après déploiement du fichier (cf. guide de démarrage, à mettre à jour).
+
+### 8.9 — Contrôle réel des participants (kick/mute) — nouveau, au-delà du plan initial
+
+Absent du plan initial : `can_moderate` existait dans le schéma
+`RoomConfig` et se propageait jusqu'au contexte de l'agent, mais n'était
+JAMAIS lu ni utilisé nulle part dans `services/peer/` — aucune action de
+modération active n'existait, seulement de la notification passive
+(`make_moderation_handler` dans `events/handlers.py`, qui informe par
+chat, n'agit jamais).
+
+Ajouté, avec les vraies API `JitsiConference` établies (mêmes appels que
+les boutons "Kick"/"Mute" de l'interface Jitsi elle-même, confirmés via
+lib-jitsi-meet — `kickParticipant(id, reason)`, `muteParticipant(id,
+'audio')`, `JitsiParticipant.isModerator()`) :
+- `CivitasBrowser.kick_participant/mute_participant/get_moderator_status`
+  (syntaxe JS validée via `node --check`)
+- `PeerInstance` : mêmes méthodes, gate `can_moderate` AVANT tout appel
+  Jitsi — deux échecs distincts et non ambigus : `allowed=false` (bloqué
+  côté CIVITAS) vs `allowed=true, ok=false` (rejeté par Jitsi)
+- Endpoints `POST /peer/{room_id}/kick`, `/mute`, `GET .../moderator_status`
+  (peer), et `POST /moderator/kick`, `/mute`, `GET /moderator/status/{room_id}`
+  (room-spawner — l'API destinée à un opérateur humain)
+- **Testé de bout en bout** (FastAPI réel, transport HTTP mocké entre
+  room-spawner et peer-service) : kick réussi, mute rejeté par Jitsi
+  propagé correctement (`ok:false` sans provoquer d'erreur HTTP), status
+  correctement relayé
+
+**Limite honnête, à ne pas ignorer** : ces actions n'ont d'effet que si le
+peer a lui-même le rôle `moderator` dans la room Jitsi au moment de
+l'appel. Comportement Jitsi **standard**, pas une limite de cette
+implémentation : par défaut, Jitsi accorde ce rôle au premier participant
+à rejoindre la room — le plus souvent un humain, puisque le flux normal
+est « humain crée la room → webhook → peer rejoint ensuite ». Dans ce cas
+courant, le peer rejoint comme participant normal et `kick`/`mute`
+échoueront (`ok:false`, jamais une erreur silencieuse côté API CIVITAS
+grâce à `get_moderator_status()`/`moderator_status`). Rendre le peer
+systématiquement modérateur nécessiterait une configuration Prosody
+supplémentaire (affiliation admin, JWT, ou équivalent) non explorée dans
+cette session par prudence — piste à ouvrir séparément si un contrôle
+modérateur garanti est nécessaire, plutôt que de deviner une configuration
+non vérifiable sans test live.
+
+### 8.10 — Réponses aux questions ouvertes du §6
+
+1. **Cas A confirmé** — cf. 8.1.
+2. Interface web de gestion : non traité cette session, l'API du manager
+   (room-spawner) couvre déjà create/reserve/inject/eject/standby/
+   activate/kick/mute/status — suffisant pour piloter par script/Postman
+   en attendant une décision produit sur une UI dédiée.
+3. **Tranché** — cf. 8.2 : lignes existantes migrées `confirmed` par
+   défaut (non destructif), nouvelles créations legacy tracées
+   `source=manager_api_legacy` pour distinction future.
+4. Job de réconciliation périodique (Phase 4) : toujours non implémenté,
+   volontairement — nécessiterait une API de listing des rooms Jitsi
+   réelles pour comparer, non explorée cette session (piste : le module
+   standard `mod_muc_size.lua`, déjà présent dans `nginx/jitsi-meet-host-backup/`,
+   expose `GET room`/`GET room-size` en HTTP — à vérifier s'il est
+   disponible tel quel dans l'image Docker standard avant de l'ajouter).
+
+### 8.11 — Ce qui reste à valider sur le serveur (hors de portée du bac à sable)
+
+- Déployer `jitsi/prosody-plugins-custom/mod_muc_webhook.lua` vers
+  `${CONFIG}/prosody/prosody-plugins-custom/`, configurer
+  `XMPP_MUC_MODULES`/`XMPP_MUC_CONFIGURATION` (cf. `.env.example`),
+  redémarrer Prosody, et confirmer dans ses logs `mod_muc_webhook chargé`
+  puis un `POST` réussi (200) vers event-bridge à la prochaine room créée.
+- Exécuter `alembic upgrade head` s'exécute bien au démarrage de
+  room-config sur la vraie base de production (log `Migrations à jour ✓`
+  attendu) — testé ici sur Postgres local, pas sur la base réelle.
+- Tester `kick`/`mute` en situation réelle (peer déjà présent seul dans
+  une room avant qu'un humain ne rejoigne, pour qu'il hérite du rôle
+  modérateur par défaut) afin de confirmer que la chaîne complète
+  fonctionne au-delà des tests unitaires/mockés faits ici.
+
+---
+
 ## Journal des mises à jour
 
 - **2026-07-31** — Diagnostic initial complet, plan phasé créé. Aucun code
@@ -607,3 +850,14 @@ guide de démarrage).
   de `jitsi_boot.sh` vérifie désormais une vraie preuve d'authentification
   (health-check REST) plutôt qu'un "conteneur actif". Détail complet en
   §7.5.
+- **2026-08-13** — Audit complet de `event-bridge/` et `services/` (hors
+  Jitsi, déjà opérationnel). Phase 0 tranchée (Cas A confirmé), Phases 1/3/5
+  implémentées et testées en conditions réelles (Postgres + FastAPI réels,
+  pas de mocks pour la logique métier). Bug critique non répertorié trouvé
+  et corrigé (`set_peer_standby` — `UnboundLocalError` systématique).
+  Alembic mis en place (absent jusqu'ici). Webhook Prosody→event-bridge :
+  trois bugs réels trouvés (URL Docker invalide, réseau manquant, champs
+  désaccordés) + absence totale d'authentification — tous corrigés et
+  testés. Contrôle réel des participants (kick/mute) ajouté avec les vraies
+  API JitsiConference établies, limite honnête documentée (rôle modérateur
+  non garanti par défaut). Détail complet en §8.

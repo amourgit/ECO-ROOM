@@ -6,6 +6,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Python (services/*, event-bridge/) — absent jusqu'ici, ajouté après l'avoir
+# vécu en pratique en testant services/room-config localement.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
 # Production builds
 .next/
 out/
