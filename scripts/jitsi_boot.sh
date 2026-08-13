@@ -163,9 +163,9 @@ case "$JITSI_MODE" in
 docker)
     if container_running "prosody"; then
         log "Prosody : conteneur actif"
-        info "Attente de l'écoute XMPP (max ${PROSODY_LISTEN_TIMEOUT}s, ss -ltn dans le conteneur prosody)..."
+        info "Attente de l'écoute XMPP (max ${PROSODY_LISTEN_TIMEOUT}s, test TCP en loopback dans le conteneur prosody)..."
         if wait_for_prosody_listening "$JITSI_DIR" "$PROSODY_LISTEN_TIMEOUT"; then
-            log "Prosody : écoute confirmée sur le port ${XMPP_PORT:-5222} (ss -ltn)"
+            log "Prosody : écoute confirmée sur le port ${XMPP_PORT:-5222}"
             if check_prosody_reachable_from_jicofo "$JITSI_DIR"; then
                 log "Prosody : joignable depuis Jicofo (TCP ouvert de bout en bout)"
                 PROSODY_OK=1

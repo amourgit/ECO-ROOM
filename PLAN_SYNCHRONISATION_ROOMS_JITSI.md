@@ -531,6 +531,45 @@ Seul cas encore manuel : la toute première exécution sur un stockage déjà
 ancien (aucune empreinte de référence) — d'où la nécessité de lancer
 `jitsi_reset_prosody.sh` une dernière fois pour "amorcer" le mécanisme.
 
+### 7.6 — `jitsi_reset_prosody.sh` exécuté : SASL résolu, mais faux négatif dans la vérification (2026-08-13)
+
+Exécution de `sudo bash scripts/jitsi_reset_prosody.sh` sur le serveur.
+Les logs Prosody réels (`docker compose logs prosody`) confirment un
+**succès complet** : les 4 comptes internes ont été recréés
+(`focus@auth.meet.jitsi`, `jvb@auth.meet.jitsi`, `jibri@auth.meet.jitsi`,
+`jigasi@auth.meet.jitsi`), et surtout — preuve directe que le problème du
+§7.5 est résolu — le log montre explicitement :
+```
+Authenticated as jvb@auth.meet.jitsi [prosody:operator]
+Authenticated as focus@auth.meet.jitsi [prosody:operator]
+```
+Jicofo et JVB se sont réauthentifiés avec succès.
+
+Le script a pourtant affiché `[✗] Prosody ne s'est pas remis à écouter` —
+un **faux négatif dans la vérification elle-même**, pas dans Prosody. Cause
+identifiée : `wait_for_prosody_listening()` s'appuyait sur `ss -ltn`
+exécuté via `docker compose exec -T prosody` (non-interactif). Ce mode
+d'exécution semble résoudre `$PATH` différemment du shell interactif dans
+lequel `ss` avait été testé manuellement plus tôt (`ss` vit sous
+`/usr/sbin` sur Debian, pas systématiquement dans le `$PATH` par défaut
+hors shell de login) — le binaire n'était probablement simplement pas
+trouvé, produisant une sortie vide plutôt qu'une erreur visible.
+
+**Correctif** : `wait_for_prosody_listening()` et `prosody_listen_diagnose()`
+n'utilisent plus `ss` pour la décision succès/échec — remplacé par un test
+de connexion TCP en loopack (`127.0.0.1:5222`) via `/dev/tcp` (builtin
+bash, sans dépendance à un binaire externe ni à son `$PATH`), la même
+méthode déjà utilisée avec succès pour `check_prosody_reachable_from_jicofo`.
+Validé par un test unitaire (port ouvert détecté / port fermé rejeté,
+sans faux positif ni faux négatif). `ss -ltn` reste affiché en best-effort
+dans `prosody_listen_diagnose()` à titre purement informatif, plus jamais
+comme critère de décision.
+
+**Conclusion à ce stade : la chaîne d'authentification XMPP
+Prosody↔Jicofo↔JVB fonctionne.** Reste à confirmer côté navigateur qu'une
+réunion peut réellement être créée et rejointe de bout en bout (cf. §3 du
+guide de démarrage).
+
 ---
 
 ## Journal des mises à jour

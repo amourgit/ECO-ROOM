@@ -226,15 +226,23 @@ sync_prosody_accounts_with_env() {
 # --- Vérification réelle de l'écoute Prosody sur le port XMPP ---------------
 #
 # Deux niveaux de preuve, dans l'ordre :
-#   1. Prosody lui-même écoute-t-il sur 5222 ? -> `ss -ltn` DANS le
-#      conteneur prosody (confirmé disponible dans l'image, contrairement à
-#      `nc`). C'est la preuve la plus directe : un conteneur "actif" côté
-#      Docker ne dit rien de l'état interne du process Prosody lui-même
-#      (s6-overlay peut le laisser en crash-loop sans jamais faire sortir
-#      le conteneur, cf. §7.4 de PLAN_SYNCHRONISATION_ROOMS_JITSI.md).
+#   1. Prosody lui-même écoute-t-il sur 5222 ? -> connexion TCP en loopback
+#      (127.0.0.1) DEPUIS le conteneur prosody, via /dev/tcp (pseudo-device
+#      bash). Une preuve directe : un conteneur "actif" côté Docker ne dit
+#      rien de l'état interne du process Prosody lui-même (s6-overlay peut
+#      le laisser en crash-loop sans jamais faire sortir le conteneur, cf.
+#      §7.4 de PLAN_SYNCHRONISATION_ROOMS_JITSI.md).
+#      NOTE (§7.6) : ce check utilisait initialement `ss -ltn` (confirmé
+#      disponible en shell interactif), mais s'est révélé produire de FAUX
+#      NÉGATIFS en pratique via `docker compose exec -T` non-interactif —
+#      probablement une résolution de $PATH différente pour ce contexte
+#      d'exec côté uid non-root (ss vit sous /usr/sbin, pas toujours dans
+#      le PATH par défaut hors shell de login). /dev/tcp est un builtin
+#      bash, sans dépendance à un binaire externe ni à son PATH — méthode
+#      déjà utilisée avec succès pour le point (2) ci-dessous.
 #   2. Si (1) est vrai, la connexion aboutit-elle bien depuis Jicofo (le
 #      vrai client XMPP), et pas seulement en loopback sur Prosody ?
-#      `nc` étant absent des images, on utilise /dev/tcp (pseudo-device bash).
+#      `nc` étant absent des images, on utilise /dev/tcp également.
 #
 # wait_for_prosody_listening fait du polling (Prosody peut mettre quelques
 # secondes à terminer son init — génération de certificats, stockage —
@@ -245,8 +253,9 @@ wait_for_prosody_listening() {
     local xmpp_port="${XMPP_PORT:-5222}"
     local elapsed=0
     while [ "$elapsed" -lt "$timeout" ]; do
-        if ( cd "$jitsi_dir" && docker compose exec -T prosody ss -ltn 2>/dev/null ) \
-                | grep -q ":${xmpp_port}[[:space:]]"; then
+        if ( cd "$jitsi_dir" && docker compose exec -T prosody \
+                bash -c "(exec 3<>/dev/tcp/127.0.0.1/${xmpp_port}) 2>/dev/null" \
+           ) 2>/dev/null; then
             return 0
         fi
         sleep 2
@@ -267,13 +276,18 @@ check_prosody_reachable_from_jicofo() {
     ) 2>/dev/null
 }
 
-# Diagnostic imprimé uniquement en cas d'échec : sortie ss réelle dans
-# Prosody + fin des logs, pour aller droit à la cause (le plus souvent une
-# permission refusée sur ${CONFIG}/storage/prosody lors de l'init).
+# Diagnostic imprimé uniquement en cas d'échec : état TCP réel + `ss` en
+# best-effort (informatif seulement, jamais utilisé pour décider du
+# succès/échec — cf. note §7.6 ci-dessus) + fin des logs, pour aller droit
+# à la cause (le plus souvent une permission refusée sur
+# ${CONFIG}/storage/prosody lors de l'init).
 prosody_listen_diagnose() {
     local jitsi_dir="$1"
     ( cd "$jitsi_dir" && {
-        echo "  -- ss -ltn (dans le conteneur prosody) --"
+        echo "  -- test TCP loopback 127.0.0.1:${XMPP_PORT:-5222} (dans le conteneur prosody) --"
+        docker compose exec -T prosody bash -c \
+            "(exec 3<>/dev/tcp/127.0.0.1/${XMPP_PORT:-5222}) 2>/dev/null && echo '  -> ouvert' || echo '  -> fermé/injoignable'"
+        echo "  -- ss -ltn, si disponible (informatif uniquement) --"
         docker compose exec -T prosody ss -ltn 2>&1 | sed 's/^/  /'
         echo "  -- docker compose logs prosody --tail=30 --"
         docker compose logs prosody --tail=30 2>&1 | sed 's/^/  /'

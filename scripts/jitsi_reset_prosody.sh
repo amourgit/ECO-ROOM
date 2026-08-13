@@ -62,7 +62,7 @@ fi
 reset_prosody_account_storage "$JITSI_DIR"
 
 echo ""
-info "Vérification (max 60s, ss -ltn dans le conteneur prosody)..."
+info "Vérification (max 60s, test TCP en loopback dans le conteneur prosody)..."
 if wait_for_prosody_listening "$JITSI_DIR" 60; then
     log "Prosody écoute à nouveau sur le port ${XMPP_PORT:-5222}"
 else
