@@ -7,6 +7,8 @@ services:
       - "8100:8100"
     networks:
       - civitas-net
+    env_file:
+      - .env
     environment:
       KAFKA_BOOTSTRAP: civitas-kafka:9094
 
