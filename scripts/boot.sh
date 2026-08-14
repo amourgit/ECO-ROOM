@@ -5,6 +5,33 @@ log() {
     echo "[$(date)] $1"
 }
 
+err() {
+    echo "[$(date)] [ERREUR] $1" >&2
+}
+
+# Attend qu'un service réponde HTTP 200 sur son endpoint /health — jamais
+# un simple `sleep N` (durée arbitraire, ne prouve rien) : preuve réelle
+# que le service a démarré, avec un délai maximal explicite. Même principe
+# que scripts/jitsi_boot.sh pour Prosody/Jicofo/JVB — un `docker compose up
+# -d` réussi ne prouve que le conteneur a démarré, jamais que le service
+# applicatif dedans répond (ex: crash au démarrage si la DB n'est pas
+# encore prête, migration en échec...).
+wait_for_health() {
+    local url=$1 name=$2 timeout=${3:-60}
+    local elapsed=0
+    log "Attente de $name ($url, max ${timeout}s)..."
+    while [ "$elapsed" -lt "$timeout" ]; do
+        if curl -sf -o /dev/null "$url" 2>/dev/null; then
+            log "$name prêt ✓ (après ${elapsed}s)"
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    err "$name non disponible après ${timeout}s ($url)"
+    return 1
+}
+
 log "Démarrage Civitas..."
 
 # Charge les variables globales (CIVITAS_IP, CIVITAS_SUBNET, CIVITAS_DOMAIN...)
@@ -57,13 +84,40 @@ else
 fi
 
 compose_up /opt/civitas/kafka/docker-compose.yml "Kafka"
-sleep 15
 compose_up /opt/civitas/monitoring/docker-compose.yml "Monitoring"
-compose_up /opt/civitas/services/room-config/docker-compose.yml "Room Config"
-sleep 5
-compose_up /opt/civitas/services/room-spawner/docker-compose.yml "Room Spawner"
-compose_up /opt/civitas/event-bridge/docker-compose.yml "Event Bridge"
-compose_up /opt/civitas/services/peer/docker-compose.yml "Peer"
 
-log "Civitas opérationnel ✓"
+compose_up /opt/civitas/services/room-config/docker-compose.yml "Room Config"
+# room-config exécute désormais create_all() + alembic upgrade head à son
+# démarrage (cf. PLAN_SYNCHRONISATION_ROOMS_JITSI.md §8.6) — peut prendre
+# plus que quelques secondes selon l'état de la base ; on attend une vraie
+# preuve plutôt qu'un délai fixe.
+if ! wait_for_health "http://localhost:8010/health" "Room Config" 60; then
+    err "Room Config indisponible — voir : docker logs civitas-room-config --tail=100"
+    exit 1
+fi
+
+# event-bridge AVANT room-spawner : c'est lui qui produit les événements
+# jitsi.room.events/jitsi.participant.events que room-spawner consomme.
+# Ordre inversé par rapport à avant — sans effet fatal via Kafka (le
+# consumer attend simplement les messages), mais plus logique et plus
+# rapide à diagnostiquer en cas de souci.
+compose_up /opt/civitas/event-bridge/docker-compose.yml "Event Bridge"
+if ! wait_for_health "http://localhost:8100/health" "Event Bridge" 30; then
+    err "Event Bridge indisponible — voir : docker logs civitas-event-bridge --tail=100"
+    exit 1
+fi
+
+compose_up /opt/civitas/services/room-spawner/docker-compose.yml "Room Spawner"
+if ! wait_for_health "http://localhost:8011/health" "Room Spawner" 30; then
+    err "Room Spawner indisponible — voir : docker logs civitas-room-spawner --tail=100"
+    exit 1
+fi
+
+compose_up /opt/civitas/services/peer/docker-compose.yml "Peer"
+if ! wait_for_health "http://localhost:8002/health" "Peer" 30; then
+    err "Peer indisponible — voir : docker logs civitas-peer --tail=100"
+    exit 1
+fi
+
+log "Civitas opérationnel ✓ — Room Config, Event Bridge, Room Spawner, Peer tous vérifiés"
 
