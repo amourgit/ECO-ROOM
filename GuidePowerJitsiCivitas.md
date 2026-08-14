@@ -128,21 +128,58 @@ sécurité (moins critique que `DISABLE_HTTPS`, puisque c'est `nginx`, pas
 `web`, qui présente son certificat au navigateur en premier — mais autant
 faire les choses proprement).
 
-### 2.5 — (Optionnel à ce stade) Plugin Prosody du webhook vers event-bridge
+### 2.5 — Webhook Prosody → event-bridge (nécessaire pour que CIVITAS voie les rooms réelles)
 
-Si `event-bridge` doit recevoir les événements de salle (création,
-présence...) en provenance de Prosody, un module Prosody personnalisé doit
-être copié :
+Sans cette étape, le stack Jitsi fonctionne pour la vidéoconférence, mais
+**event-bridge ne recevra jamais aucun événement réel** (room créée,
+participant qui rejoint...) — tout le pipeline CIVITAS (Kafka,
+room-spawner, apparition automatique du peer) resterait silencieusement
+inactif. Cf. `PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §8.8.
 
+**a) Générer un secret partagé** (une seule fois) :
+```bash
+openssl rand -hex 32
+```
+Copier cette valeur aux **deux** endroits suivants (elle doit être
+strictement identique) :
+- `jitsi/.env`, variable `XMPP_MUC_CONFIGURATION` (remplacer
+  `CHANGE_ME_SAME_AS_EVENT_BRIDGE_WEBHOOK_SECRET`)
+- `event-bridge/.env` (copié depuis `.env.example`), variable
+  `WEBHOOK_SECRET`
+
+**b) Déployer le module Prosody corrigé** (celui-ci, testé — pas l'ancien
+de `nginx/jitsi-meet-host-backup/`, qui contient 3 bugs bloquants en
+Docker, cf. §8.8 du plan) :
 ```bash
 mkdir -p /opt/civitas/jitsi/data/prosody/prosody-plugins-custom
-# Copier ici le module webhook trouvé sur l'installation native existante,
-# en le faisant pointer vers http://event-bridge:8100/webhook
+cp /opt/civitas/jitsi/prosody-plugins-custom/mod_muc_webhook.lua \
+   /opt/civitas/jitsi/data/prosody/prosody-plugins-custom/
 ```
 
-**Ce n'est pas nécessaire pour qu'une réunion vidéo fonctionne** — uniquement
-pour que les événements de salle remontent à `event-bridge`. Tu peux
-avancer sans, et revenir à cette étape plus tard.
+**c) Vérifier que `jitsi/.env` charge bien le module** — `XMPP_MUC_MODULES=muc_webhook`
+doit déjà être présent (dans `.env.example`, donc dans `.env` si copié
+depuis lui à l'étape 2.2 ; sinon l'ajouter).
+
+**d) Redémarrer Prosody** pour appliquer :
+```bash
+cd /opt/civitas/jitsi && docker compose restart prosody
+```
+
+**e) Vérifier dans les logs** que le module a bien chargé :
+```bash
+docker compose logs prosody --tail=20 | grep muc_webhook
+```
+Doit afficher `mod_muc_webhook chargé — webhook: http://civitas-event-bridge:8100/webhook (secret: configuré)`.
+Si `(secret: ABSENT)` apparaît, le secret n'a pas été correctement injecté
+— revérifier `XMPP_MUC_CONFIGURATION` dans `jitsi/.env` (syntaxe : deux
+affectations Lua séparées par `;` sur une seule ligne).
+
+**f) Test réel** : rejoindre n'importe quelle room Jitsi, puis :
+```bash
+curl -s http://localhost:8100/rooms | python3 -m json.tool
+```
+La room doit apparaître avec au moins un participant. Si `{}` reste vide,
+voir §4 ci-dessous.
 
 ### 2.6 — Vérifier le réseau `civitas-net`
 
@@ -226,7 +263,7 @@ preuve que **les réunions fonctionnent**, c'est d'en créer une :
 ### `jitsi_boot.sh` échoue sur Prosody (pas d'écoute sur 5222)
 
 Cause quasi certaine : permissions sur `${CONFIG}/storage/prosody`. Le
-script affiche déjà `ss -ltn` + les logs Prosody. Vérifier :
+script affiche déjà un test de connexion TCP + les logs Prosody. Vérifier :
 
 ```bash
 ls -la /opt/civitas/jitsi/data/storage/prosody
@@ -266,6 +303,32 @@ docker compose logs web --tail=50
 Vérifier que `DISABLE_HTTPS=1` est bien présent dans `.env` (§2.2) — sans
 ça, `web` redirige en interne vers son propre HTTPS que `nginx` ne sait
 pas suivre.
+
+### `event-bridge` ne voit jamais aucune room (`curl localhost:8100/rooms` reste `{}`)
+
+Vérifier, dans l'ordre :
+
+```bash
+# 1. Le module a-t-il chargé côté Prosody ?
+cd /opt/civitas/jitsi && docker compose logs prosody --tail=50 | grep muc_webhook
+# Doit afficher "mod_muc_webhook chargé — ... (secret: configuré)".
+# "(secret: ABSENT)" -> XMPP_MUC_CONFIGURATION mal renseigné dans jitsi/.env (§2.5).
+# Rien du tout -> XMPP_MUC_MODULES=muc_webhook manquant, ou le fichier
+# .lua n'a pas été copié dans data/prosody/prosody-plugins-custom/ (§2.5b).
+
+# 2. Le secret correspond-il bien des deux côtés ?
+grep muc_webhook_secret /opt/civitas/jitsi/.env
+grep WEBHOOK_SECRET /opt/civitas/event-bridge/.env
+# Les deux valeurs doivent être identiques (ligne muc_webhook_secret = "...").
+
+# 3. Prosody peut-il seulement atteindre event-bridge sur le réseau ?
+docker compose exec prosody bash -c "(exec 3<>/dev/tcp/civitas-event-bridge/8100) && echo OK"
+# Si ça échoue : prosody doit être sur civitas-net (déjà le cas dans ce
+# dépôt) ET civitas-event-bridge doit être démarré.
+
+# 4. event-bridge rejette-t-il les requêtes (401) ?
+cd /opt/civitas/event-bridge && docker compose logs event-bridge --tail=50
+```
 
 ### Rien ne se passe du tout, aucun conteneur ne démarre
 
@@ -351,9 +414,21 @@ mkdir -p data/web/keys
 cp /opt/civitas/certs/civitas.local.crt data/web/keys/cert.crt
 cp /opt/civitas/certs/civitas.local.key data/web/keys/cert.key
 
-# Démarrage / arrêt (toujours par ces scripts, jamais docker compose à la main)
+# Webhook Prosody -> event-bridge (§2.5) — secret partagé identique aux
+# deux endroits, puis copier le plugin corrigé
+mkdir -p data/prosody/prosody-plugins-custom
+cp prosody-plugins-custom/mod_muc_webhook.lua data/prosody/prosody-plugins-custom/
+# éditer .env : XMPP_MUC_CONFIGURATION (secret) — et event-bridge/.env : WEBHOOK_SECRET (même valeur)
+
+# Démarrage / arrêt de Jitsi seul (toujours par ces scripts, jamais docker compose à la main)
 sudo bash /opt/civitas/scripts/jitsi_boot.sh
 sudo bash /opt/civitas/scripts/jitsi_stop.sh
+
+# Démarrage / arrêt COMPLET (Jitsi + Kafka + event-bridge + room-config +
+# room-spawner + peer + monitoring) — vérifie réellement chaque service,
+# jamais un simple "conteneur démarré"
+sudo bash /opt/civitas/scripts/boot.sh
+sudo bash /opt/civitas/scripts/stop.sh
 
 # En cas de SASLError not-authorized (Jicofo/JVB)
 sudo bash /opt/civitas/scripts/jitsi_reset_prosody.sh
