@@ -161,8 +161,23 @@ doit déjà être présent (dans `.env.example`, donc dans `.env` si copié
 depuis lui à l'étape 2.2 ; sinon l'ajouter).
 
 **d) Redémarrer Prosody** pour appliquer :
+
+⚠️ **Ne JAMAIS faire `docker compose restart prosody` tout seul.** `docker
+compose up -d` (dans `jitsi_boot.sh`) ne redémarre pas Prosody juste parce
+qu'un fichier a changé dans un volume monté (Compose ne redétecte que les
+changements de configuration, pas le contenu des fichiers) — un restart
+explicite est donc bien nécessaire pour que le nouveau plugin soit chargé.
+**Mais un restart direct contourne complètement `sync_prosody_accounts_with_env()`**
+(cf. §8/`PLAN_SYNCHRONISATION_ROOMS_JITSI.md`) : si `.env` a changé entre
+temps sans repasser par `jitsi_boot.sh`, rien ne détecte ni ne corrige la
+désynchronisation des comptes XMPP — remontée en pratique en `SASLError
+not-authorized` après un `docker compose restart prosody` fait à la main.
+Toujours encadrer le restart des deux côtés :
+
 ```bash
-cd /opt/civitas/jitsi && docker compose restart prosody
+sudo bash /opt/civitas/scripts/jitsi_boot.sh   # 1. resynchronise .env <-> comptes Prosody si besoin
+cd /opt/civitas/jitsi && docker compose restart prosody   # 2. recharge le nouveau plugin
+sudo bash /opt/civitas/scripts/jitsi_boot.sh   # 3. reconfirme que tout est encore sain (Jicofo/JVB compris)
 ```
 
 **e) Vérifier dans les logs** que le module a bien chargé :
@@ -279,8 +294,19 @@ Cause quasi certaine : `SASLError not-authorized` (§0). Vérifier :
 cd /opt/civitas/jitsi && docker compose logs jicofo --tail=50 | grep -i sasl
 ```
 
-Si tu vois `not-authorized` : lance la réinitialisation ciblée (sûre, ne
-touche à rien d'autre que les comptes XMPP internes) :
+Cause fréquente confirmée en pratique : un `docker compose restart
+prosody` (ou `stop`/`up`) lancé directement, sans passer par
+`jitsi_boot.sh` avant — cf. règle 2bis du §5. La resynchronisation
+automatique ne s'exécute QUE via `jitsi_boot.sh`.
+
+Si tu vois `not-authorized` : d'abord réessayer simplement
+```bash
+sudo bash /opt/civitas/scripts/jitsi_boot.sh
+```
+(la resynchronisation automatique peut suffire si `.env` n'a pas
+réellement changé depuis le dernier passage). Si ça persiste, lance la
+réinitialisation ciblée (sûre, ne touche à rien d'autre que les comptes
+XMPP internes) :
 
 ```bash
 sudo bash /opt/civitas/scripts/jitsi_reset_prosody.sh
@@ -348,6 +374,11 @@ cd /opt/civitas/jitsi && docker compose config    # doit afficher la config sans
 2. **Ne jamais lancer `docker compose up -d` à la main** — toujours passer
    par `sudo bash scripts/jitsi_boot.sh`, qui prépare les répertoires et
    resynchronise les comptes avant de démarrer quoi que ce soit.
+2bis. **Ne jamais faire `docker compose restart prosody` (ou `stop`/`up`)
+   tout seul, sans `jitsi_boot.sh` avant ET après** — vécu en pratique
+   (§2.5d) : un restart direct après un changement de `.env` a fait
+   réapparaître le SASL `not-authorized`, faute de passer par la
+   resynchronisation automatique.
 3. **Ne jamais éditer les fichiers dans `${CONFIG}` (`/opt/civitas/jitsi/data`)
    à la main**, sauf les deux exceptions explicites du §2.4/§2.5
    (certificats, plugin) — tout le reste y est généré automatiquement et

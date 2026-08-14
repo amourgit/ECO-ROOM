@@ -813,6 +813,48 @@ non vérifiable sans test live.
   modérateur par défaut) afin de confirmer que la chaîne complète
   fonctionne au-delà des tests unitaires/mockés faits ici.
 
+### 8.12 — Retours du premier déploiement réel du webhook (2026-08-14)
+
+Tests menés directement sur le serveur (`jitsi/logs-compose.txt`,
+`jitsi/.env-v2`, commits `0dac368`/`a48dcc8`) — deux découvertes :
+
+**JICOFO_ENABLE_REST manquant.** `JICOFO_ENABLE_HEALTH_CHECKS=1` seul ne
+suffit pas : sans `JICOFO_ENABLE_REST=1`, l'interface REST de Jicofo n'est
+jamais exposée du tout, `/about/health` reste inaccessible. Angle mort de
+l'ajout initial (§7.5/7.6), confirmé par la doc officielle
+docker-jitsi-meet ("Jicofo exposes health and metrics endpoints when REST
+interface is enabled via JICOFO_ENABLE_REST") et ajouté à `jitsi/.env.example`.
+
+**`event-bridge` ne chargeait jamais son `.env` dans le conteneur.**
+`event-bridge/docker-compose.yml` était le seul des trois services
+(room-config/room-spawner/peer avaient déjà `env_file: .env`) à ne
+JAMAIS charger son `.env` réel — `WEBHOOK_SECRET` (§8.7) restait donc à
+sa valeur par défaut au runtime quoi que contienne le fichier local.
+Trouvé et corrigé côté serveur, mergé.
+
+**`mod_muc_webhook` : "Unable to load module" — cause confirmée
+anodine.** Le message d'erreur (`/usr/lib/prosody/modules/share/lua/5.4/
+mod_muc_webhook/...`) correspond au DERNIER chemin de recherche Prosody
+essayé après échec de tous les précédents — dont `/prosody-plugins-custom/`
+(confirmé par la doc communautaire comme le chemin correct pour les
+plugins custom docker-jitsi-meet). Le fichier n'avait simplement pas
+encore été copié à cet emplacement au moment du test (§2.5b du guide) —
+pas un bug de configuration.
+
+**SASL `not-authorized` réapparu — cause confirmée : le guide lui-même
+contournait la protection.** `sync_prosody_accounts_with_env()` (§8) ne
+s'exécute QUE via `jitsi_boot.sh`. Le guide de démarrage (§2.5d)
+instruisait un `docker compose restart prosody` DIRECT pour charger le
+nouveau plugin — nécessaire (Compose ne redétecte pas un fichier changé
+dans un volume monté), mais contournant entièrement la resynchronisation
+automatique. Combiné à `jitsi/.env-v2` (fichier contenant d'autres mots
+de passe générés, présent sur le serveur — valeurs confirmées non
+utilisées actuellement par l'opérateur), exactement le scénario que le
+mécanisme d'auto-résync est censé rattraper, mais seulement s'il est
+sollicité. **Corrigé dans le guide** : tout restart de Prosody encadré de
+`jitsi_boot.sh` avant ET après ; règle générale ajoutée en §5 du guide
+(règle 2bis).
+
 ---
 
 ## Journal des mises à jour
@@ -860,4 +902,12 @@ non vérifiable sans test live.
   désaccordés) + absence totale d'authentification — tous corrigés et
   testés. Contrôle réel des participants (kick/mute) ajouté avec les vraies
   API JitsiConference établies, limite honnête documentée (rôle modérateur
-  non garanti par défaut). Détail complet en §8.
+  non garanti par défaut). `scripts/boot.sh` corrigé (même défaut de faux
+  succès que jitsi_boot.sh avant correction). Détail complet en §8.
+- **2026-08-14** — Premier déploiement réel du webhook côté serveur
+  (parallèle, commits `0dac368`/`a48dcc8`) : deux angles morts trouvés et
+  corrigés (`JICOFO_ENABLE_REST` manquant, `event-bridge` ne chargeait
+  jamais son `.env`). SASL `not-authorized` réapparu — cause identifiée :
+  le guide de démarrage lui-même instruisait un redémarrage direct de
+  Prosody contournant la resynchronisation automatique. Guide corrigé en
+  conséquence. Détail complet en §8.12.
