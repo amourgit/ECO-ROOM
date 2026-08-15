@@ -1,5 +1,3 @@
-Test git global
-
 # CIVITAS — Documentation API complète & Guide de test CLI (curl)
 
 > Toutes les requêtes curl pour tester chaque endpoint de la plateforme CIVITAS.  
@@ -9,16 +7,18 @@ Test git global
 
 ## Tokens d'authentification
 
-| Service | Token |
+| Service | Token / Secret |
 |---------|-------|
 | Room Config | `civitas-room-config-token` |
 | Room Spawner | `civitas-peer-token` |
 | Peer Service | `civitas-peer-token` |
+| Event Bridge — webhook Prosody (`X-Civitas-Webhook-Secret`) | valeur de `WEBHOOK_SECRET` (`event-bridge/.env`), identique à `muc_webhook_secret` (`jitsi/.env`) — cf. `PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §8.7/§8.8 |
 
 ---
 
 ## Sommaire
 
+0. [Cycle de vie complet d'un peer dans une room](#0-cycle-de-vie-complet-dun-peer-dans-une-room)
 1. [Event Bridge (:8100)](#1-event-bridge-8100)
 2. [Room Config Service (:8010)](#2-room-config-service-8010)
 3. [Room Spawner (:8011)](#3-room-spawner-8011)
@@ -28,6 +28,298 @@ Test git global
 7. [Prometheus (:9091)](#7-prometheus-9091)
 8. [Loki (:3100)](#8-loki-3100)
 9. [Tests de flux complets](#9-tests-de-flux-complets)
+
+---
+
+## 0. Cycle de vie complet d'un peer dans une room
+
+Cette section est LA procédure de référence pour faire apparaître un peer
+CIVITAS dans une room et le piloter de bout en bout — chaque étape est
+indépendamment détaillée plus loin dans le document (liens donnés), mais
+voici l'enchaînement complet, dans l'ordre, avec des exemples de sortie
+JSON réalistes à chaque étape.
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ 1. Réserver la  │───▶│ 2. Room Jitsi    │───▶│ 3. Peer auto-rejoint │
+│    room (pending)│    │    réelle créée  │    │    (via room-spawner)│
+│    room-config   │    │    (webhook réel │    │    -> confirmed      │
+└─────────────────┘    │    ou simulé)     │    └──────────┬───────────┘
+                        └──────────────────┘               │
+                                                             ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ 6. Éjecter /    │◀───│ 5. Modérer       │◀───│ 4. Vérifier & piloter│
+│    terminer      │    │    (kick/mute)   │    │    (status, chat,    │
+└─────────────────┘    └──────────────────┘    │    texte)             │
+                                                 └─────────────────────┘
+```
+
+> Deux façons d'amener une room à l'existence : le flux **réel** (un
+> humain ouvre `https://meet.civitas.local/<room>` — Prosody notifie
+> event-bridge, room-spawner fait rejoindre le peer automatiquement,
+> aucun appel API requis pour ce déclenchement) ou le flux **manuel/test**
+> (les commandes ci-dessous). Les deux convergent au même état.
+
+### Étape 1 — Réserver la room (recommandé) ou la créer directement
+
+**Flux recommandé** — réserve les métadonnées AVANT que la room Jitsi
+réelle existe (statut `pending`, cf. §2 `POST /rooms/reserve`) :
+
+```bash
+curl -s -X POST http://192.168.1.89:8010/rooms/reserve \
+  -H "Authorization: Bearer civitas-room-config-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "room_id": "reunion-budget-2026",
+    "agent_name": "CIVITAS-BUDGET",
+    "system_prompt": "Tu es CIVITAS-BUDGET, assistant de la réunion budgétaire. Tu réponds uniquement si on cite ton nom.",
+    "language": "fr",
+    "can_speak": true,
+    "can_write_chat": true,
+    "can_moderate": false,
+    "invocation_keywords": ["civitas", "budget"]
+  }' | python3 -m json.tool
+```
+
+**Réponse JSON (201 Created) :**
+```json
+{
+  "room_id": "reunion-budget-2026",
+  "agent_name": "CIVITAS-BUDGET",
+  "system_prompt": "Tu es CIVITAS-BUDGET, assistant de la réunion budgétaire. Tu réponds uniquement si on cite ton nom.",
+  "behavior_mode": "on_call",
+  "language": "fr",
+  "can_speak": true,
+  "can_write_chat": true,
+  "can_use_tools": false,
+  "can_use_rag": false,
+  "can_moderate": false,
+  "peer_enabled": true,
+  "invocation_keywords": ["civitas", "budget"],
+  "tools_allowed": [],
+  "extra_config": {},
+  "is_active": true,
+  "status": "pending",
+  "source": "manager_api_reserved",
+  "jitsi_confirmed_at": null,
+  "created_at": "2026-08-14T10:00:00.123456",
+  "updated_at": "2026-08-14T10:00:00.123456"
+}
+```
+`status: "pending"` — normal à ce stade : aucune room Jitsi réelle n'a
+encore été vue pour ce `room_id`. Détail complet : §2 `POST /rooms/reserve`.
+
+### Étape 2 — Faire exister la room Jitsi réelle
+
+**Flux réel (production)** : un participant ouvre simplement
+`https://meet.civitas.local/reunion-budget-2026` dans son navigateur.
+Rien à appeler côté API — Prosody notifie `event-bridge` automatiquement
+(webhook, cf. §1), qui publie sur Kafka, que `room-spawner` consomme.
+
+**Flux manuel/test** (simuler l'événement, utile en développement sans
+navigateur réel — nécessite le secret webhook, cf. tableau des tokens) :
+```bash
+curl -s -X POST http://192.168.1.89:8100/webhook \
+  -H "Content-Type: application/json" \
+  -H "X-Civitas-Webhook-Secret: $WEBHOOK_SECRET" \
+  -d '{"event_name": "muc-room-created", "room_name": "reunion-budget-2026"}' \
+  | python3 -m json.tool
+```
+
+**Réponse JSON :**
+```json
+{"status": "published", "topic": "jitsi.room.events"}
+```
+
+### Étape 3 — Le peer rejoint automatiquement (room-spawner)
+
+Aucun appel requis — `room-spawner` consomme l'événement Kafka
+`muc-room-created`, vérifie `peer_enabled` (cf. §2), et fait rejoindre le
+peer si autorisé. C'est cet appel interne (`GET /rooms/{id}/context`) qui
+promeut la room `pending` → `confirmed` (cf. Étape 1).
+
+Pour forcer manuellement la même chose sans attendre (tests) :
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/inject \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026"}' \
+  | python3 -m json.tool
+```
+
+**Réponse JSON :**
+```json
+{"status": "injected", "room_id": "reunion-budget-2026"}
+```
+
+### Étape 4 — Vérifier que le peer est bien présent
+
+```bash
+curl -s http://192.168.1.89:8011/rooms/active \
+  -H "Authorization: Bearer civitas-peer-token" | python3 -m json.tool
+```
+
+**Réponse JSON :**
+```json
+{
+  "active_rooms": ["reunion-budget-2026"],
+  "peer_instances": {
+    "count": 1,
+    "instances": [
+      {
+        "room_id": "reunion-budget-2026",
+        "active": true,
+        "agent_name": "CIVITAS-BUDGET",
+        "behavior_mode": "on_call",
+        "started_at": "2026-08-14T10:02:14.884201",
+        "duration_minutes": 1
+      }
+    ]
+  }
+}
+```
+
+Confirmer que la room est bien passée `confirmed` côté room-config :
+```bash
+curl -s http://192.168.1.89:8010/rooms/reunion-budget-2026 \
+  -H "Authorization: Bearer civitas-room-config-token" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print('status:', d['status'], '| jitsi_confirmed_at:', d['jitsi_confirmed_at'])"
+# status: confirmed | jitsi_confirmed_at: 2026-08-14T10:02:14.901532
+```
+
+### Étape 5 — Interagir avec le peer
+
+Faire parler l'agent (texte injecté dans le pipeline Gemini, sortie audio
+réelle dans la room) :
+```bash
+curl -s -X POST http://192.168.1.89:8002/peer/reunion-budget-2026/send_text \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Annonce aux participants que la réunion budgétaire commence."}' \
+  | python3 -m json.tool
+```
+**Réponse JSON :** `{"status": "sent"}`
+
+Écrire directement dans le chat Jitsi (sans passer par Gemini) :
+```bash
+curl -s -X POST http://192.168.1.89:8002/peer/reunion-budget-2026/send_chat \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "📋 Ordre du jour disponible dans le chat."}' \
+  | python3 -m json.tool
+```
+**Réponse JSON :** `{"status": "sent"}`
+
+### Étape 6 — Modérer (si `can_moderate: true`)
+
+Toujours vérifier l'état réel avant d'agir :
+```bash
+curl -s http://192.168.1.89:8011/moderator/status/reunion-budget-2026 \
+  -H "Authorization: Bearer civitas-peer-token" | python3 -m json.tool
+```
+**Réponse JSON :**
+```json
+{"can_moderate": true, "participant_id": "9f8e7d6c", "role": "moderator", "is_moderator": true}
+```
+
+Exclure un participant perturbateur :
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/kick \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026", "participant_id": "a1b2c3d4", "reason": "Hors sujet répété"}' \
+  | python3 -m json.tool
+```
+**Réponse JSON :** `{"allowed": true, "ok": true}`
+
+Couper un micro à distance (rappel : irréversible à distance, seul le
+participant peut se réactiver) :
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/mute \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026", "participant_id": "a1b2c3d4"}' \
+  | python3 -m json.tool
+```
+**Réponse JSON :** `{"allowed": true, "ok": true}`
+
+Détail complet, prérequis et cas d'échec : §3 `POST /moderator/kick`,
+`/mute`, `/status/{room_id}`.
+
+### Étape 7 — Mettre en veille / réactiver (optionnel)
+
+```bash
+# Silencieux (reste présent, n'intervient plus)
+curl -s -X POST http://192.168.1.89:8011/moderator/standby \
+  -H "Authorization: Bearer civitas-peer-token" -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026"}' | python3 -m json.tool
+# {"status": "standby", "room_id": "reunion-budget-2026"}
+
+# Réactivation
+curl -s -X POST http://192.168.1.89:8011/moderator/activate \
+  -H "Authorization: Bearer civitas-peer-token" -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026"}' | python3 -m json.tool
+# {"status": "activated", "room_id": "reunion-budget-2026"}
+```
+
+### Étape 8 — Éjecter / terminer
+
+```bash
+curl -s -X POST http://192.168.1.89:8011/moderator/eject \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d '{"room_id": "reunion-budget-2026"}' | python3 -m json.tool
+```
+**Réponse JSON :** `{"status": "ejected", "room_id": "reunion-budget-2026"}`
+
+Ceci désactive aussi `peer_enabled` côté room-config — le peer ne
+rejoindra plus automatiquement cette room tant qu'il n'est pas réactivé
+(`PATCH /rooms/{room_id}` avec `{"peer_enabled": true}`, ou un nouvel
+`/moderator/inject`).
+
+### Étape 9 — Consulter l'historique de la réunion
+
+```bash
+curl -s http://192.168.1.89:8010/rooms/reunion-budget-2026/history \
+  -H "Authorization: Bearer civitas-room-config-token" | python3 -m json.tool
+```
+**Réponse JSON (extrait) :**
+```json
+{
+  "room_id": "reunion-budget-2026",
+  "count": 3,
+  "entries": [
+    {
+      "speaker_id": null,
+      "speaker_name": "CIVITAS-BUDGET",
+      "entry_type": "agent",
+      "text": "Annonce aux participants que la réunion budgétaire commence.",
+      "extra": null,
+      "occurred_at": "2026-08-14T10:03:01.552000"
+    },
+    {
+      "speaker_id": null,
+      "speaker_name": "CIVITAS-BUDGET",
+      "entry_type": "chat",
+      "text": "📋 Ordre du jour disponible dans le chat.",
+      "extra": null,
+      "occurred_at": "2026-08-14T10:03:05.118000"
+    },
+    {
+      "speaker_id": "ministre@meet.civitas.local/abc",
+      "speaker_name": "Ministre du Budget",
+      "entry_type": "participant",
+      "text": "Merci CIVITAS, on peut commencer.",
+      "extra": null,
+      "occurred_at": "2026-08-14T10:03:20.004000"
+    }
+  ],
+  "formatted_context": "[10:03] CIVITAS-BUDGET (agent): Annonce aux participants...\n[10:03] CIVITAS-BUDGET (chat): 📋 Ordre du jour...\n[10:03] Ministre du Budget: Merci CIVITAS, on peut commencer.\n"
+}
+```
+`entry_type` : `participant` (parole transcrite) / `agent` (parole de
+l'IA) / `chat` (message texte). Alimenté en continu par Kafka
+(`room.transcriptions`) — persiste même si le service `peer` redémarre.
 
 ---
 
@@ -1178,10 +1470,15 @@ curl -s http://192.168.1.89:8010/rooms/gouvernement-2024/context \
 
 ### Test 3 — Simulation du cycle complet (sans Jitsi réel)
 
+> Nécessite `WEBHOOK_SECRET` (identique à `muc_webhook_secret` côté
+> Prosody, cf. tableau des tokens) — `/webhook` répond `401` sans le
+> header `X-Civitas-Webhook-Secret`.
+
 ```bash
 #!/bin/bash
 
 ROOM="test-cli-$(date +%s)"
+WEBHOOK_SECRET="valeur-de-event-bridge/.env"   # à remplacer
 
 echo "=== Test cycle complet — room: $ROOM ==="
 
@@ -1189,6 +1486,7 @@ echo "=== Test cycle complet — room: $ROOM ==="
 echo "[1] Simulation webhook muc-room-created"
 curl -s -X POST http://192.168.1.89:8100/webhook \
   -H "Content-Type: application/json" \
+  -H "X-Civitas-Webhook-Secret: $WEBHOOK_SECRET" \
   -d "{\"event_name\": \"muc-room-created\", \"room_name\": \"$ROOM\"}" \
   | python3 -m json.tool
 
@@ -1204,6 +1502,7 @@ echo ""
 echo "[3] Simulation participant join"
 curl -s -X POST http://192.168.1.89:8100/webhook \
   -H "Content-Type: application/json" \
+  -H "X-Civitas-Webhook-Secret: $WEBHOOK_SECRET" \
   -d "{
     \"event_name\": \"muc-occupant-joined\",
     \"room_name\": \"$ROOM\",
@@ -1239,6 +1538,7 @@ echo ""
 echo "[7] Simulation room détruite"
 curl -s -X POST http://192.168.1.89:8100/webhook \
   -H "Content-Type: application/json" \
+  -H "X-Civitas-Webhook-Secret: $WEBHOOK_SECRET" \
   -d "{\"event_name\": \"muc-room-destroyed\", \"room_name\": \"$ROOM\"}" \
   | python3 -m json.tool
 ```
@@ -1355,6 +1655,70 @@ curl -s -X POST http://192.168.1.89:8010/rooms/ \
 
 ---
 
+### Test 7 — Modération réelle (kick / mute / status)
+
+Suppose un peer déjà présent dans la room, avec `can_moderate: true`
+(cf. Test 5) et le rôle `moderator` côté Jitsi (par défaut, accordé au
+premier participant à rejoindre — cf. §3 et
+`PLAN_SYNCHRONISATION_ROOMS_JITSI.md` §8.9 pour le détail de ce prérequis).
+
+```bash
+#!/bin/bash
+
+ROOM="salle-pleniere"
+
+echo "=== Modération réelle — room: $ROOM ==="
+
+# 1. Vérifier l'état modérateur AVANT toute action
+echo "[1] Statut modérateur"
+curl -s "http://192.168.1.89:8011/moderator/status/$ROOM" \
+  -H "Authorization: Bearer civitas-peer-token" | python3 -m json.tool
+# {"can_moderate": true, "participant_id": "9f8e7d6c", "role": "moderator", "is_moderator": true}
+
+# 2. Récupérer un participant_id réel (via les événements Kafka
+#    jitsi.participant.events, ou l'UI Jitsi elle-même — ici en dur pour
+#    l'exemple)
+PARTICIPANT_ID="a1b2c3d4"
+
+# 3. Couper son micro
+echo ""
+echo "[2] Mute"
+curl -s -X POST http://192.168.1.89:8011/moderator/mute \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d "{\"room_id\": \"$ROOM\", \"participant_id\": \"$PARTICIPANT_ID\"}" \
+  | python3 -m json.tool
+# {"allowed": true, "ok": true}
+
+sleep 1
+
+# 4. Exclure (cas extrême)
+echo ""
+echo "[3] Kick"
+curl -s -X POST http://192.168.1.89:8011/moderator/kick \
+  -H "Authorization: Bearer civitas-peer-token" \
+  -H "Content-Type: application/json" \
+  -d "{\"room_id\": \"$ROOM\", \"participant_id\": \"$PARTICIPANT_ID\", \"reason\": \"Non-respect répété des règles\"}" \
+  | python3 -m json.tool
+# {"allowed": true, "ok": true}
+```
+
+**Si `can_moderate` est désactivé pour la room**, `/mute` et `/kick`
+répondent immédiatement sans jamais toucher à Jitsi :
+```json
+{"allowed": false, "ok": false, "error": "can_moderate désactivé pour cette room"}
+```
+
+**Si le peer n'a pas le rôle modérateur côté Jitsi** (cas le plus fréquent
+si un humain a rejoint la room avant le peer) :
+```json
+{"allowed": true, "ok": false, "error": "..."}
+```
+Dans ce cas, `is_moderator: false` dans `/moderator/status/{room_id}` le
+confirmait déjà avant l'appel.
+
+---
+
 ### Test 6 — Vérification Kafka (topics et messages)
 
 > Nécessite les outils kafka-console installés, ou l'accès au container kafka.
@@ -1413,7 +1777,7 @@ docker exec civitas-kafka kafka-run-class kafka.tools.GetOffsetShell \
 | 201 | Ressource créée |
 | 204 | Succès sans contenu (DELETE) |
 | 400 | Requête invalide (JSON malformé, etc.) |
-| 401 | Token Bearer manquant ou invalide |
+| 401 | Token Bearer / secret webhook manquant ou invalide |
 | 404 | Ressource introuvable |
 | 422 | Validation échouée (type de données incorrect) |
 | 500 | Erreur serveur interne |
@@ -1431,6 +1795,7 @@ export API_BASE_PEER="http://192.168.1.89:8002"
 export API_BASE_EB="http://192.168.1.89:8100"
 export TOKEN_RC="civitas-room-config-token"
 export TOKEN_PEER="civitas-peer-token"
+export WEBHOOK_SECRET="<valeur de event-bridge/.env, WEBHOOK_SECRET>"
 
 # Puis utiliser:
 curl -s $API_BASE_RC/health | python3 -m json.tool
