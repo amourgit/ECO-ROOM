@@ -3,6 +3,13 @@
 > Toutes les requêtes curl pour tester chaque endpoint de la plateforme CIVITAS.  
 > IP hôte : `192.168.1.89` · Tokens Bearer ci-dessous.
 
+> 🔧 **Un CLI complet couvre toutes ces requêtes sans écrire de curl à la
+> main** : `cli/civitas` (zéro dépendance, stdlib Python uniquement).
+> Exemple : `civitas room reserve ma-salle --agent-name CIVITAS` au lieu
+> du `curl` équivalent. Voir `cli/README.md` pour l'installation et la
+> liste complète des commandes — chaque section ci-dessous mentionne
+> aussi la commande CLI équivalente entre crochets.
+
 ---
 
 ## Tokens d'authentification
@@ -62,6 +69,8 @@ JSON réalistes à chaque étape.
 
 ### Étape 1 — Réserver la room (recommandé) ou la créer directement
 
+**[CLI]** `civitas room reserve reunion-budget-2026 --agent-name CIVITAS-BUDGET --prompt "..." --keywords civitas,budget`
+
 **Flux recommandé** — réserve les métadonnées AVANT que la room Jitsi
 réelle existe (statut `pending`, cf. §2 `POST /rooms/reserve`) :
 
@@ -111,6 +120,8 @@ encore été vue pour ce `room_id`. Détail complet : §2 `POST /rooms/reserve`.
 
 ### Étape 2 — Faire exister la room Jitsi réelle
 
+**[CLI]** (flux manuel/test) `civitas webhook room-created reunion-budget-2026`
+
 **Flux réel (production)** : un participant ouvre simplement
 `https://meet.civitas.local/reunion-budget-2026` dans son navigateur.
 Rien à appeler côté API — Prosody notifie `event-bridge` automatiquement
@@ -133,6 +144,8 @@ curl -s -X POST http://192.168.1.89:8100/webhook \
 
 ### Étape 3 — Le peer rejoint automatiquement (room-spawner)
 
+**[CLI]** (forcer manuellement) `civitas peer inject reunion-budget-2026`
+
 Aucun appel requis — `room-spawner` consomme l'événement Kafka
 `muc-room-created`, vérifie `peer_enabled` (cf. §2), et fait rejoindre le
 peer si autorisé. C'est cet appel interne (`GET /rooms/{id}/context`) qui
@@ -153,6 +166,8 @@ curl -s -X POST http://192.168.1.89:8011/moderator/inject \
 ```
 
 ### Étape 4 — Vérifier que le peer est bien présent
+
+**[CLI]** `civitas peer active` · `civitas room get reunion-budget-2026`
 
 ```bash
 curl -s http://192.168.1.89:8011/rooms/active \
@@ -189,6 +204,8 @@ curl -s http://192.168.1.89:8010/rooms/reunion-budget-2026 \
 
 ### Étape 5 — Interagir avec le peer
 
+**[CLI]** `civitas peer send-text reunion-budget-2026 "..."` · `civitas peer send-chat reunion-budget-2026 "..."`
+
 Faire parler l'agent (texte injecté dans le pipeline Gemini, sortie audio
 réelle dans la room) :
 ```bash
@@ -211,6 +228,8 @@ curl -s -X POST http://192.168.1.89:8002/peer/reunion-budget-2026/send_chat \
 **Réponse JSON :** `{"status": "sent"}`
 
 ### Étape 6 — Modérer (si `can_moderate: true`)
+
+**[CLI]** `civitas peer status reunion-budget-2026` · `civitas peer mute reunion-budget-2026 a1b2c3d4` · `civitas peer kick reunion-budget-2026 a1b2c3d4 --reason "..."`
 
 Toujours vérifier l'état réel avant d'agir :
 ```bash
@@ -248,6 +267,8 @@ Détail complet, prérequis et cas d'échec : §3 `POST /moderator/kick`,
 
 ### Étape 7 — Mettre en veille / réactiver (optionnel)
 
+**[CLI]** `civitas peer standby reunion-budget-2026` · `civitas peer activate reunion-budget-2026`
+
 ```bash
 # Silencieux (reste présent, n'intervient plus)
 curl -s -X POST http://192.168.1.89:8011/moderator/standby \
@@ -264,6 +285,8 @@ curl -s -X POST http://192.168.1.89:8011/moderator/activate \
 
 ### Étape 8 — Éjecter / terminer
 
+**[CLI]** `civitas peer eject reunion-budget-2026`
+
 ```bash
 curl -s -X POST http://192.168.1.89:8011/moderator/eject \
   -H "Authorization: Bearer civitas-peer-token" \
@@ -278,6 +301,8 @@ rejoindra plus automatiquement cette room tant qu'il n'est pas réactivé
 `/moderator/inject`).
 
 ### Étape 9 — Consulter l'historique de la réunion
+
+**[CLI]** `civitas room history reunion-budget-2026`
 
 ```bash
 curl -s http://192.168.1.89:8010/rooms/reunion-budget-2026/history \

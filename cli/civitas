@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""
+civitas — CLI de pilotage de la plateforme CIVITAS (rooms, peers, modération).
+
+Zéro dépendance externe (stdlib uniquement — urllib/json/argparse) : marche
+sur n'importe quelle machine avec Python 3.9+, sans rien installer.
+
+Couvre l'intégralité du cycle de vie documenté dans DOCUMENTATION_API.md §0 :
+réserver une room, faire rejoindre le peer, l'interroger, le modérer
+(kick/mute — vraies API JitsiConference, pas une simulation), l'éjecter.
+
+Configuration (ordre de priorité, du plus fort au plus faible) :
+  1. Options en ligne de commande (--room-config-url, --token, etc.)
+  2. Variables d'environnement (CIVITAS_ROOM_CONFIG_URL, CIVITAS_HOST, ...)
+  3. Fichier de config (~/.civitas.env ou /opt/civitas/cli/.env, format
+     KEY=VALUE, une par ligne — cf. `civitas config --show`)
+  4. Défauts intégrés (localhost, tokens de DOCUMENTATION_API.md)
+
+Usage rapide :
+  civitas health
+  civitas room reserve ma-salle --agent-name CIVITAS --prompt "..."
+  civitas peer inject ma-salle
+  civitas peer status ma-salle
+  civitas peer kick ma-salle a1b2c3d4 --reason "hors sujet"
+  civitas --help
+  civitas room --help
+  civitas peer kick --help
+"""
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from urllib.parse import urlencode
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+DEFAULT_CONFIG_PATHS = [
+    os.path.expanduser("~/.civitas.env"),
+    "/opt/civitas/cli/.env",
+]
+
+# Défauts alignés sur jitsi/.env.example, event-bridge/.env.example et
+# services/*/.env.example — à écraser via variables d'environnement ou
+# fichier de config pour un déploiement réel.
+DEFAULTS = {
+    "HOST": "localhost",
+    "ROOM_CONFIG_PORT": "8010",
+    "ROOM_SPAWNER_PORT": "8011",
+    "PEER_PORT": "8002",
+    "EVENT_BRIDGE_PORT": "8100",
+    "ROOM_CONFIG_TOKEN": "civitas-room-config-token",
+    "PEER_TOKEN": "civitas-peer-token",
+    "WEBHOOK_SECRET": "",
+}
+
+
+def _load_config_file() -> dict:
+    """Parseur KEY=VALUE minimal — aucune dépendance à python-dotenv."""
+    values = {}
+    for path in DEFAULT_CONFIG_PATHS:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, _, val = line.partition("=")
+                    values[key.strip()] = val.strip().strip('"').strip("'")
+        except OSError:
+            pass
+    return values
+
+
+class Config:
+    """Résout host/ports/tokens selon l'ordre de priorité documenté en tête."""
+
+    def __init__(self, args: argparse.Namespace):
+        file_cfg = _load_config_file()
+
+        def resolve(key: str, cli_value=None) -> str:
+            if cli_value is not None:
+                return cli_value
+            env_key = f"CIVITAS_{key}"
+            if env_key in os.environ:
+                return os.environ[env_key]
+            if key in file_cfg:
+                return file_cfg[key]
+            return DEFAULTS[key]
+
+        self.host = resolve("HOST", args.host)
+        self.room_config_url = args.room_config_url or f"http://{self.host}:{resolve('ROOM_CONFIG_PORT')}"
+        self.room_spawner_url = args.room_spawner_url or f"http://{self.host}:{resolve('ROOM_SPAWNER_PORT')}"
+        self.peer_url = args.peer_url or f"http://{self.host}:{resolve('PEER_PORT')}"
+        self.event_bridge_url = args.event_bridge_url or f"http://{self.host}:{resolve('EVENT_BRIDGE_PORT')}"
+        self.room_config_token = resolve("ROOM_CONFIG_TOKEN", args.token)
+        self.peer_token = resolve("PEER_TOKEN", args.token)
+        self.webhook_secret = resolve("WEBHOOK_SECRET", args.webhook_secret)
+
+    def show(self):
+        print("Configuration résolue :")
+        print(f"  ROOM_CONFIG_URL   = {self.room_config_url}")
+        print(f"  ROOM_SPAWNER_URL  = {self.room_spawner_url}")
+        print(f"  PEER_URL          = {self.peer_url}")
+        print(f"  EVENT_BRIDGE_URL  = {self.event_bridge_url}")
+        print(f"  ROOM_CONFIG_TOKEN = {self.room_config_token[:4]}{'*' * max(0, len(self.room_config_token) - 4)}")
+        print(f"  PEER_TOKEN        = {self.peer_token[:4]}{'*' * max(0, len(self.peer_token) - 4)}")
+        secret_display = (self.webhook_secret[:4] + "***") if self.webhook_secret else "(non configuré)"
+        print(f"  WEBHOOK_SECRET    = {secret_display}")
+        print()
+        print("Fichiers de config cherchés (le premier trouvé gagne, KEY=VALUE) :")
+        for p in DEFAULT_CONFIG_PATHS:
+            print(f"  {p}{'  [trouvé]' if os.path.isfile(p) else ''}")
+
+
+# ============================================================================
+# Client HTTP — stdlib uniquement
+# ============================================================================
+
+class ApiError(Exception):
+    def __init__(self, status: int, body: str, url: str):
+        self.status = status
+        self.body = body
+        self.url = url
+        super().__init__(f"HTTP {status} sur {url} : {body}")
+
+
+def _request(method: str, url: str, token: str = None, webhook_secret: str = None,
+             json_body: dict = None, params: dict = None) -> dict:
+    if params:
+        url = f"{url}?{urlencode(params)}"
+
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if webhook_secret:
+        headers["X-Civitas-Webhook-Secret"] = webhook_secret
+
+    data = json.dumps(json_body).encode("utf-8") if json_body is not None else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise ApiError(e.code, body, url) from None
+    except urllib.error.URLError as e:
+        raise ApiError(0, f"Connexion impossible ({e.reason}) — service down ou mauvaise URL ?", url) from None
+
+
+def get(url, token=None, params=None):
+    return _request("GET", url, token=token, params=params)
+
+
+def post(url, token=None, json_body=None, webhook_secret=None):
+    return _request("POST", url, token=token, json_body=json_body or {}, webhook_secret=webhook_secret)
+
+
+def patch(url, token=None, json_body=None):
+    return _request("PATCH", url, token=token, json_body=json_body or {})
+
+
+def delete(url, token=None):
+    return _request("DELETE", url, token=token)
+
+
+# ============================================================================
+# Sortie
+# ============================================================================
+
+def _supports_color() -> bool:
+    return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+
+
+def print_json(data, raw: bool = False):
+    if raw:
+        print(json.dumps(data, ensure_ascii=False))
+        return
+    text = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False)
+    if _supports_color():
+        # Coloration minimale, sans dépendance — clés en cyan, chaînes en vert.
+        import re
+        text = re.sub(r'"([^"]+)":', r'\033[36m"\1"\033[0m:', text)
+        text = re.sub(r': "([^"]*)"', r': \033[32m"\1"\033[0m', text)
+    print(text)
+
+
+def die(message: str, code: int = 1):
+    print(f"Erreur : {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+def run_command(fn, cfg, args, raw: bool = False):
+    """Exécute une commande, formate proprement toute ApiError."""
+    try:
+        result = fn(cfg, args)
+        if result is not None:
+            print_json(result, raw=raw)
+    except ApiError as e:
+        hint = ""
+        if e.status == 401:
+            hint = " (token/secret invalide — cf. `civitas config --show`)"
+        elif e.status == 404:
+            hint = " (room/participant introuvable)"
+        elif e.status == 0:
+            hint = " (le service est-il démarré ? cf. `civitas health`)"
+        die(f"HTTP {e.status}{hint}\n{e.body}")
+
+
+# ============================================================================
+# Commandes — Room Config (:8010)
+# ============================================================================
+
+def _room_payload(args) -> dict:
+    payload = {}
+    if args.agent_name is not None: payload["agent_name"] = args.agent_name
+    if args.prompt is not None: payload["system_prompt"] = args.prompt
+    if args.behavior_mode is not None: payload["behavior_mode"] = args.behavior_mode
+    if args.language is not None: payload["language"] = args.language
+    if args.can_speak is not None: payload["can_speak"] = args.can_speak
+    if args.can_write_chat is not None: payload["can_write_chat"] = args.can_write_chat
+    if args.can_use_tools is not None: payload["can_use_tools"] = args.can_use_tools
+    if args.can_use_rag is not None: payload["can_use_rag"] = args.can_use_rag
+    if args.can_moderate is not None: payload["can_moderate"] = args.can_moderate
+    if args.peer_enabled is not None: payload["peer_enabled"] = args.peer_enabled
+    if args.active is not None: payload["is_active"] = args.active
+    if args.keywords is not None: payload["invocation_keywords"] = args.keywords.split(",")
+    if args.tools is not None: payload["tools_allowed"] = args.tools.split(",")
+    if args.extra_config is not None:
+        try:
+            payload["extra_config"] = json.loads(args.extra_config)
+        except json.JSONDecodeError as e:
+            die(f"--extra-config doit être un JSON valide : {e}")
+    return payload
+
+
+def cmd_room_reserve(cfg: Config, args):
+    payload = {"room_id": args.room_id, **_room_payload(args)}
+    return post(f"{cfg.room_config_url}/rooms/reserve", token=cfg.room_config_token, json_body=payload)
+
+
+def cmd_room_create(cfg: Config, args):
+    payload = {"room_id": args.room_id, **_room_payload(args)}
+    return post(f"{cfg.room_config_url}/rooms/", token=cfg.room_config_token, json_body=payload)
+
+
+def cmd_room_get(cfg: Config, args):
+    return get(f"{cfg.room_config_url}/rooms/{args.room_id}", token=cfg.room_config_token)
+
+
+def cmd_room_list(cfg: Config, args):
+    return get(f"{cfg.room_config_url}/rooms/", token=cfg.room_config_token,
+               params={"skip": args.skip, "limit": args.limit})
+
+
+def cmd_room_update(cfg: Config, args):
+    payload = _room_payload(args)
+    if not payload:
+        die("Aucun champ à mettre à jour — passer au moins une option (--agent-name, --behavior-mode, --peer-enabled...)")
+    return patch(f"{cfg.room_config_url}/rooms/{args.room_id}", token=cfg.room_config_token, json_body=payload)
+
+
+def cmd_room_delete(cfg: Config, args):
+    delete(f"{cfg.room_config_url}/rooms/{args.room_id}", token=cfg.room_config_token)
+    return {"status": "deleted", "room_id": args.room_id}
+
+
+def cmd_room_context(cfg: Config, args):
+    return get(f"{cfg.room_config_url}/rooms/{args.room_id}/context", token=cfg.room_config_token)
+
+
+def cmd_room_history(cfg: Config, args):
+    return get(f"{cfg.room_config_url}/rooms/{args.room_id}/history", token=cfg.room_config_token,
+               params={"limit": args.limit})
+
+
+# ============================================================================
+# Commandes — Room Spawner (:8011) / Peer Service (:8002)
+# ============================================================================
+
+def cmd_peer_inject(cfg: Config, args):
+    return post(f"{cfg.room_spawner_url}/moderator/inject", token=cfg.peer_token, json_body={"room_id": args.room_id})
+
+
+def cmd_peer_eject(cfg: Config, args):
+    return post(f"{cfg.room_spawner_url}/moderator/eject", token=cfg.peer_token, json_body={"room_id": args.room_id})
+
+
+def cmd_peer_standby(cfg: Config, args):
+    return post(f"{cfg.room_spawner_url}/moderator/standby", token=cfg.peer_token, json_body={"room_id": args.room_id})
+
+
+def cmd_peer_activate(cfg: Config, args):
+    return post(f"{cfg.room_spawner_url}/moderator/activate", token=cfg.peer_token, json_body={"room_id": args.room_id})
+
+
+def cmd_peer_active(cfg: Config, args):
+    return get(f"{cfg.room_spawner_url}/rooms/active", token=cfg.peer_token)
+
+
+def cmd_peer_status(cfg: Config, args):
+    return get(f"{cfg.room_spawner_url}/moderator/status/{args.room_id}", token=cfg.peer_token)
+
+
+def cmd_peer_kick(cfg: Config, args):
+    payload = {"room_id": args.room_id, "participant_id": args.participant_id, "reason": args.reason}
+    return post(f"{cfg.room_spawner_url}/moderator/kick", token=cfg.peer_token, json_body=payload)
+
+
+def cmd_peer_mute(cfg: Config, args):
+    payload = {"room_id": args.room_id, "participant_id": args.participant_id}
+    return post(f"{cfg.room_spawner_url}/moderator/mute", token=cfg.peer_token, json_body=payload)
+
+
+def cmd_peer_send_text(cfg: Config, args):
+    return post(f"{cfg.peer_url}/peer/{args.room_id}/send_text", token=cfg.peer_token, json_body={"text": args.text})
+
+
+def cmd_peer_send_chat(cfg: Config, args):
+    return post(f"{cfg.peer_url}/peer/{args.room_id}/send_chat", token=cfg.peer_token, json_body={"text": args.text})
+
+
+def cmd_peer_instances(cfg: Config, args):
+    return get(f"{cfg.peer_url}/peer/instances", token=cfg.peer_token)
+
+
+# ============================================================================
+# Commandes — Event Bridge (:8100) / simulation webhook
+# ============================================================================
+
+def cmd_webhook_room_created(cfg: Config, args):
+    if not cfg.webhook_secret:
+        die("WEBHOOK_SECRET non configuré — cf. `civitas config --show` (--webhook-secret ou CIVITAS_WEBHOOK_SECRET)")
+    return post(f"{cfg.event_bridge_url}/webhook", webhook_secret=cfg.webhook_secret,
+                json_body={"event_name": "muc-room-created", "room_name": args.room_id})
+
+
+def cmd_webhook_room_destroyed(cfg: Config, args):
+    if not cfg.webhook_secret:
+        die("WEBHOOK_SECRET non configuré — cf. `civitas config --show`")
+    return post(f"{cfg.event_bridge_url}/webhook", webhook_secret=cfg.webhook_secret,
+                json_body={"event_name": "muc-room-destroyed", "room_name": args.room_id})
+
+
+def cmd_webhook_participant_joined(cfg: Config, args):
+    if not cfg.webhook_secret:
+        die("WEBHOOK_SECRET non configuré — cf. `civitas config --show`")
+    payload = {
+        "event_name": "muc-occupant-joined",
+        "room_name": args.room_id,
+        "occupant_jid": args.jid,
+        "occupant_nick": args.nick,
+        "role": args.role,
+        "affiliation": args.affiliation,
+    }
+    return post(f"{cfg.event_bridge_url}/webhook", webhook_secret=cfg.webhook_secret, json_body=payload)
+
+
+def cmd_webhook_participant_left(cfg: Config, args):
+    if not cfg.webhook_secret:
+        die("WEBHOOK_SECRET non configuré — cf. `civitas config --show`")
+    payload = {
+        "event_name": "muc-occupant-left",
+        "room_name": args.room_id,
+        "occupant_jid": args.jid,
+        "occupant_nick": args.nick,
+        "role": args.role,
+        "affiliation": args.affiliation,
+    }
+    return post(f"{cfg.event_bridge_url}/webhook", webhook_secret=cfg.webhook_secret, json_body=payload)
+
+
+def cmd_webhook_rooms(cfg: Config, args):
+    return get(f"{cfg.event_bridge_url}/rooms")
+
+
+def cmd_webhook_room(cfg: Config, args):
+    return get(f"{cfg.event_bridge_url}/rooms/{args.room_id}")
+
+
+# ============================================================================
+# Santé de la plateforme
+# ============================================================================
+
+def cmd_health(cfg: Config, args):
+    services = [
+        ("room-config", cfg.room_config_url, cfg.room_config_token),
+        ("room-spawner", cfg.room_spawner_url, cfg.peer_token),
+        ("peer", cfg.peer_url, cfg.peer_token),
+        ("event-bridge", cfg.event_bridge_url, None),
+    ]
+    results = {}
+    all_ok = True
+    for name, url, token in services:
+        try:
+            r = get(f"{url}/health", token=token)
+            results[name] = r
+        except ApiError as e:
+            results[name] = {"status": "unreachable", "error": str(e)}
+            all_ok = False
+    print_json(results, raw=args.raw)
+    if not all_ok:
+        sys.exit(1)
+    return None  # déjà imprimé
+
+
+# ============================================================================
+# Kafka (wrapping docker exec — nécessite un accès Docker local)
+# ============================================================================
+
+KAFKA_CONTAINER = "civitas-kafka"
+KAFKA_BOOTSTRAP = "civitas-kafka:9094"
+
+
+def cmd_kafka_topics(cfg: Config, args):
+    _docker_exec(["kafka-topics", "--bootstrap-server", KAFKA_BOOTSTRAP, "--list"])
+
+
+def cmd_kafka_consume(cfg: Config, args):
+    cmd = ["kafka-console-consumer", "--bootstrap-server", KAFKA_BOOTSTRAP, "--topic", args.topic,
+           "--max-messages", str(args.max_messages)]
+    if args.from_beginning:
+        cmd.append("--from-beginning")
+    _docker_exec(cmd)
+
+
+def _docker_exec(kafka_cmd: list):
+    full_cmd = ["docker", "exec", KAFKA_CONTAINER] + kafka_cmd
+    try:
+        subprocess.run(full_cmd, check=True)
+    except FileNotFoundError:
+        die("`docker` introuvable — cette commande nécessite un accès Docker local au serveur CIVITAS.")
+    except subprocess.CalledProcessError as e:
+        die(f"docker exec a échoué (code {e.returncode})")
+
+
+# ============================================================================
+# Argparse — arbre de commandes
+# ============================================================================
+
+def _make_global_parser() -> argparse.ArgumentParser:
+    """
+    Parent parser partagé (argparse `parents=`) — attaché au parser racine
+    ET à chaque sous-commande feuille, pour que les options globales soient
+    reconnues aussi bien avant qu'après la sous-commande :
+      civitas --host X room reserve id      (avant)
+      civitas room reserve id --host X      (après — sinon rejeté par argparse)
+    """
+    p = argparse.ArgumentParser(add_help=False)
+    p.add_argument("--host", default=None, help="Hôte des services (défaut : localhost ou CIVITAS_HOST)")
+    p.add_argument("--room-config-url", default=None, help="Override complet de l'URL room-config")
+    p.add_argument("--room-spawner-url", default=None, help="Override complet de l'URL room-spawner")
+    p.add_argument("--peer-url", default=None, help="Override complet de l'URL peer-service")
+    p.add_argument("--event-bridge-url", default=None, help="Override complet de l'URL event-bridge")
+    p.add_argument("--token", default=None, help="Token Bearer (remplace ROOM_CONFIG_TOKEN et PEER_TOKEN)")
+    p.add_argument("--webhook-secret", default=None, help="Secret webhook (X-Civitas-Webhook-Secret)")
+    p.add_argument("--raw", action="store_true", help="Sortie JSON brute (une ligne, pour le scripting)")
+    return p
+
+
+def _add_room_config_options(p: argparse.ArgumentParser):
+    """Options de configuration partagées entre `room reserve/create/update`."""
+    p.add_argument("--agent-name", default=None, help="Nom affiché de l'agent (défaut serveur : CIVITAS)")
+    p.add_argument("--prompt", default=None, help="System prompt (généré automatiquement si omis)")
+    p.add_argument("--behavior-mode", default=None, choices=["on_call", "proactive", "silent"])
+    p.add_argument("--language", default=None, help="Langue de réponse (défaut serveur : fr)")
+    p.add_argument("--can-speak", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--can-write-chat", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--can-use-tools", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--can-use-rag", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--can-moderate", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--peer-enabled", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--active", action=argparse.BooleanOptionalAction, default=None, help="is_active")
+    p.add_argument("--keywords", default=None, help="Mots-clés séparés par des virgules, ex: civitas,budget")
+    p.add_argument("--tools", default=None, help="Outils autorisés séparés par des virgules")
+    p.add_argument("--extra-config", default=None, help="JSON libre, ex: '{\"foo\": \"bar\"}'")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    gp = _make_global_parser()  # un seul parent, réutilisé partout
+
+    parser = argparse.ArgumentParser(
+        prog="civitas",
+        description="CLI de pilotage CIVITAS — rooms, peers, modération. Voir DOCUMENTATION_API.md §0 pour le guide complet.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[gp],
+    )
+    sub = parser.add_subparsers(dest="resource", required=True)
+
+    # --- config ---
+    p_config = sub.add_parser("config", help="Afficher la configuration résolue (URLs, tokens masqués)", parents=[gp])
+    p_config.add_argument("--show", action="store_true", help="Sans effet — la config s'affiche toujours (option de confort, style kubectl)")
+    p_config.set_defaults(handler=None)
+
+    # --- health ---
+    p_health = sub.add_parser("health", help="Vérifier l'état de tous les services CIVITAS", parents=[gp])
+    p_health.set_defaults(handler=cmd_health)
+
+    # --- room ---
+    p_room = sub.add_parser("room", help="Gestion des configurations de room (room-config, :8010)", parents=[gp])
+    room_sub = p_room.add_subparsers(dest="action", required=True)
+
+    p = room_sub.add_parser("reserve", parents=[gp], help="[RECOMMANDÉ] Réserver une room (status=pending jusqu'à confirmation Jitsi réelle)")
+    p.add_argument("room_id")
+    _add_room_config_options(p)
+    p.set_defaults(handler=cmd_room_reserve)
+
+    p = room_sub.add_parser("create", parents=[gp], help="[LEGACY] Créer une room directement confirmed — préférer `reserve`")
+    p.add_argument("room_id")
+    _add_room_config_options(p)
+    p.set_defaults(handler=cmd_room_create)
+
+    p = room_sub.add_parser("get", parents=[gp], help="Voir une room")
+    p.add_argument("room_id")
+    p.set_defaults(handler=cmd_room_get)
+
+    p = room_sub.add_parser("list", parents=[gp], help="Lister les rooms")
+    p.add_argument("--skip", type=int, default=0)
+    p.add_argument("--limit", type=int, default=100)
+    p.set_defaults(handler=cmd_room_list)
+
+    p = room_sub.add_parser("update", parents=[gp], help="Mettre à jour une room (PATCH partiel)")
+    p.add_argument("room_id")
+    _add_room_config_options(p)
+    p.set_defaults(handler=cmd_room_update)
+
+    p = room_sub.add_parser("delete", parents=[gp], help="Supprimer une room")
+    p.add_argument("room_id")
+    p.set_defaults(handler=cmd_room_delete)
+
+    p = room_sub.add_parser("context", parents=[gp], help="Contexte agent (déclenche aussi la confirmation pending->confirmed)")
+    p.add_argument("room_id")
+    p.set_defaults(handler=cmd_room_context)
+
+    p = room_sub.add_parser("history", parents=[gp], help="Historique complet de la réunion")
+    p.add_argument("room_id")
+    p.add_argument("--limit", type=int, default=200)
+    p.set_defaults(handler=cmd_room_history)
+
+    # --- peer ---
+    p_peer = sub.add_parser("peer", help="Pilotage du peer dans les rooms (room-spawner :8011 / peer-service :8002)", parents=[gp])
+    peer_sub = p_peer.add_subparsers(dest="action", required=True)
+
+    p = peer_sub.add_parser("inject", parents=[gp], help="Faire rejoindre le peer manuellement")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_peer_inject)
+
+    p = peer_sub.add_parser("eject", parents=[gp], help="Éjecter le peer (désactive aussi peer_enabled)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_peer_eject)
+
+    p = peer_sub.add_parser("standby", parents=[gp], help="Mettre le peer en silence (behavior_mode=silent)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_peer_standby)
+
+    p = peer_sub.add_parser("activate", parents=[gp], help="Réactiver le peer (behavior_mode=on_call)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_peer_activate)
+
+    p = peer_sub.add_parser("active", parents=[gp], help="Lister les rooms où un peer est actif")
+    p.set_defaults(handler=cmd_peer_active)
+
+    p = peer_sub.add_parser("instances", parents=[gp], help="Instances peer actives (vue directe peer-service)")
+    p.set_defaults(handler=cmd_peer_instances)
+
+    p = peer_sub.add_parser("status", parents=[gp], help="État modérateur réel du peer (can_moderate + is_moderator)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_peer_status)
+
+    p = peer_sub.add_parser("kick", parents=[gp], help="Exclure un participant (vraie room Jitsi — requiert le rôle moderator)")
+    p.add_argument("room_id")
+    p.add_argument("participant_id")
+    p.add_argument("--reason", default=None)
+    p.set_defaults(handler=cmd_peer_kick)
+
+    p = peer_sub.add_parser("mute", parents=[gp], help="Couper le micro d'un participant à distance (irréversible à distance)")
+    p.add_argument("room_id")
+    p.add_argument("participant_id")
+    p.set_defaults(handler=cmd_peer_mute)
+
+    p = peer_sub.add_parser("send-text", parents=[gp], help="Injecter un texte dans le pipeline Gemini (l'agent le dira à voix haute)")
+    p.add_argument("room_id")
+    p.add_argument("text")
+    p.set_defaults(handler=cmd_peer_send_text)
+
+    p = peer_sub.add_parser("send-chat", parents=[gp], help="Écrire directement dans le chat Jitsi (sans passer par Gemini)")
+    p.add_argument("room_id")
+    p.add_argument("text")
+    p.set_defaults(handler=cmd_peer_send_chat)
+
+    # --- webhook (simulation, dev/test) ---
+    p_wh = sub.add_parser("webhook", help="Simuler des événements Prosody / consulter l'état event-bridge (:8100)", parents=[gp])
+    wh_sub = p_wh.add_subparsers(dest="action", required=True)
+
+    p = wh_sub.add_parser("room-created", parents=[gp], help="Simuler muc-room-created (nécessite --webhook-secret)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_webhook_room_created)
+
+    p = wh_sub.add_parser("room-destroyed", parents=[gp], help="Simuler muc-room-destroyed (nécessite --webhook-secret)")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_webhook_room_destroyed)
+
+    p = wh_sub.add_parser("participant-joined", parents=[gp], help="Simuler muc-occupant-joined (nécessite --webhook-secret)")
+    p.add_argument("room_id")
+    p.add_argument("--jid", required=True, help="JID réel du participant (occupant_jid)")
+    p.add_argument("--nick", default="Test")
+    p.add_argument("--role", default="participant", choices=["visitor", "participant", "moderator"])
+    p.add_argument("--affiliation", default="none", choices=["none", "member", "admin", "owner", "outcast"])
+    p.set_defaults(handler=cmd_webhook_participant_joined)
+
+    p = wh_sub.add_parser("participant-left", parents=[gp], help="Simuler muc-occupant-left (nécessite --webhook-secret)")
+    p.add_argument("room_id")
+    p.add_argument("--jid", required=True)
+    p.add_argument("--nick", default="Test")
+    p.add_argument("--role", default="participant", choices=["visitor", "participant", "moderator"])
+    p.add_argument("--affiliation", default="none", choices=["none", "member", "admin", "owner", "outcast"])
+    p.set_defaults(handler=cmd_webhook_participant_left)
+
+    p = wh_sub.add_parser("rooms", parents=[gp], help="État complet des rooms vues par event-bridge")
+    p.set_defaults(handler=cmd_webhook_rooms)
+
+    p = wh_sub.add_parser("room", parents=[gp], help="État d'une room vue par event-bridge")
+    p.add_argument("room_id"); p.set_defaults(handler=cmd_webhook_room)
+
+    # --- kafka (wrapping docker exec) ---
+    p_kafka = sub.add_parser("kafka", help="Raccourcis Kafka (nécessite un accès docker local au serveur)", parents=[gp])
+    kafka_sub = p_kafka.add_subparsers(dest="action", required=True)
+
+    p = kafka_sub.add_parser("topics", parents=[gp], help="Lister les topics Kafka")
+    p.set_defaults(handler=cmd_kafka_topics)
+
+    p = kafka_sub.add_parser("consume", parents=[gp], help="Consommer un topic (ctrl-C pour arrêter en mode continu)")
+    p.add_argument("topic")
+    p.add_argument("--from-beginning", action="store_true")
+    p.add_argument("--max-messages", type=int, default=10)
+    p.set_defaults(handler=cmd_kafka_consume)
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.resource == "config":
+        Config(args).show()
+        return
+
+    cfg = Config(args)
+    run_command(args.handler, cfg, args, raw=args.raw)
+
+
+if __name__ == "__main__":
+    main()
