@@ -10,6 +10,36 @@
 
 ---
 
+## 🚧 Refonte en cours — le `peer` (§3.5, §12) est remplacé par le CIVITAS Agent Runtime
+
+**Le concept de `peer` disparaît entièrement**, remplacé par un **CIVITAS Agent Runtime** basé
+sur **LangGraph**, strictement isolé par room (un process/container par room — un crash dans
+une room n'affecte jamais les autres). La documentation de référence pour cette refonte est
+désormais [`docs/architecture/`](./docs/architecture/README.md) :
+
+1. [`docs/architecture/00-etat-des-lieux.md`](./docs/architecture/00-etat-des-lieux.md) —
+   analyse exhaustive de l'architecture décrite dans CE document (control plane, data plane,
+   `peer`, isolation) et de ses limites.
+2. [`docs/architecture/01-architecture-cible-civitas-agent.md`](./docs/architecture/01-architecture-cible-civitas-agent.md) —
+   architecture cible (4 domaines, `ConferenceAgentState`, graphe LangGraph).
+3. [`docs/architecture/02-catalogue-outils-agent.md`](./docs/architecture/02-catalogue-outils-agent.md) —
+   catalogue exhaustif des outils (toute action humaine possible dans Jitsi → outil agent).
+4. [`docs/architecture/03-isolation-et-orchestration.md`](./docs/architecture/03-isolation-et-orchestration.md) —
+   isolation stricte par room, nouvel orchestrateur.
+5. [`docs/architecture/04-plan-migration.md`](./docs/architecture/04-plan-migration.md) — plan
+   de bascule phasé, fichier par fichier.
+
+**Statut** : squelette de code posé dans `services/civitas-agent/` (remplace `services/peer/`,
+cf. [`services/peer/DEPRECATED.md`](./services/peer/DEPRECATED.md)) et
+`services/civitas-orchestrator/` (remplace `services/room-spawner/`, cf.
+[`services/room-spawner/DEPRECATED.md`](./services/room-spawner/DEPRECATED.md)). Les sections
+ci-dessous (§3.4, §3.5, §11, §12) restent la référence exacte du système **actuellement
+déployé** tant que la bascule (Phase 6 du plan de migration) n'est pas effectuée — elles ne
+sont pas retirées pour ne pas décrire un système qui ne correspondrait plus à ce qui tourne
+réellement en production pendant la période de transition.
+
+---
+
 ## Table des matières
 
 1. [Vue d'ensemble du projet](#1-vue-densemble-du-projet)

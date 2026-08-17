@@ -1,0 +1,21 @@
+# Repris de services/peer/requirements.txt (base inchangée : FastAPI, Playwright, Gemini,
+# Kafka), + langgraph/langchain-core pour le runtime de raisonnement (nouveau, cf. doc 01).
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+httpx>=0.27
+aiokafka>=0.11
+websockets>=12.0
+playwright>=1.45
+google-genai>=0.3
+
+# Runtime de raisonnement (nouveau vs. services/peer)
+langgraph>=0.2
+langchain-core>=0.3
+
+# Checkpoint LangGraph Postgres (doc 01 §7 niveau 3) — thread_id = ROOM_ID uniquement,
+# cf. app/graph/checkpoint.py
+langgraph-checkpoint-postgres>=2.0
+psycopg[binary,pool]>=3.2
