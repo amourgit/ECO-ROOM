@@ -1,0 +1,8 @@
+# Dépendances de développement uniquement — jamais installées dans l'image Docker de
+# production (Dockerfile n'installe que requirements.txt). Nécessaires pour exécuter
+# `pytest` (cf. tests/), y compris le test de fumée du graphe LangGraph qui utilise
+# `langgraph.checkpoint.memory.MemorySaver` (inclus dans le paquet `langgraph` lui-même,
+# pas de dépendance supplémentaire pour ça).
+
+pytest>=8.0
+pytest-asyncio>=0.24

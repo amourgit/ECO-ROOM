@@ -10,8 +10,8 @@
 
 | Phase | Objectif | Statut à l'issue de cette session |
 |---|---|---|
-| **0** | Documentation + squelette de code | ✅ Livré dans cette session (ce commit) |
-| **1** | `civitas-agent` — parité fonctionnelle avec `peer`, une seule room, lancée manuellement | À faire — squelette posé, logique métier à finaliser/tester |
+| **0** | Documentation + squelette de code | ✅ Livré |
+| **1** | `civitas-agent` — parité fonctionnelle avec `peer`, une seule room, lancée manuellement | 🔶 En cours — squelette posé, **tests unitaires écrits et verts** (35 tests, cf. §Tests unitaires ci-dessous), intégration réelle (Jitsi/Gemini/Kafka/Postgres) restant à faire |
 | **2** | `civitas-orchestrator` — spawn/route/teardown automatique, bascule progressive | À faire |
 | **3** | Catalogue d'outils P0 (doc 02) implémenté et testé | À faire |
 | **4** | Domaine 4 — `platform_tools`, `rag_tools`, Qdrant/MinIO | À faire |
@@ -74,15 +74,32 @@ kick/mute/chat/vision, réhydratation mémoire, reconnexion Gemini.
 6. `app/kafka/producer.py` — port direct.
 7. `app/room/config_client.py` — port direct, endpoints `room-config` inchangés.
 
-### Tests de non-régression (à écrire en Phase 1, gabarits déjà présents dans le squelette)
+### Tests unitaires — écrits et exécutés avec succès dans cette session
+
+`services/civitas-agent/tests/` (35 tests, tous verts) et `services/civitas-orchestrator/tests/`
+(9 tests, tous verts) — cf. les sections "Tests" des `README.md` respectifs pour le détail. Ces
+tests couvrent la **logique pure** avec des dépendances **simulées** : ils prouvent que le
+graphe LangGraph s'assemble et s'exécute réellement (routage d'entrée conditionnel, arête
+`route`, déclenchement d'outil via le registre, isolation d'état entre deux graphes
+indépendants), que le gating de permissions (`tools/registry.py`, doc 01 §9) refuse
+correctement (jamais un faux succès silencieux), et que `slugify_room_id`
+(`civitas-orchestrator`) ne fait jamais collisionner deux rooms distinctes.
+
+Ce que ces tests NE remplacent PAS — et qui reste le véritable critère de sortie de Phase 1 :
 
 - Rejeu des scénarios déjà documentés dans `DOCUMENTATION_API.md` §0 et §9 (cycle de vie complet
-  d'un peer dans une room), adaptés à `civitas-agent`.
-- Test unitaire `tools/registry.py` : un outil hors `tools_allowed` est refusé avec
-  `{"allowed": false, ...}`, jamais une exception non gérée.
-- Test unitaire du graphe : un événement `USER_JOINED` traverse
-  `ingest_control_event → update_state` et produit un `ConferenceAgentState.participants` à
-  jour, sans appeler `reason`/`act` (pas de raison de répondre à une simple entrée).
+  d'un agent dans une room), adaptés à `civitas-agent`, **contre un vrai cluster Jitsi**.
+- Une session Gemini Live réelle (audio bidirectionnel, reconnexion en conditions réelles).
+- Un vrai broker Kafka et un vrai `AsyncPostgresSaver` Postgres (le smoke test du graphe utilise
+  `MemorySaver`, en mémoire, précisément parce qu'aucun Postgres n'est accessible dans
+  l'environnement où ce squelette a été écrit).
+- Un vrai daemon Docker pour valider `DockerAgentRuntimeProvider.spawn/teardown`
+  (`civitas-orchestrator`).
+
+Ces quatre points nécessitent un environnement de déploiement réel (le serveur
+`192.168.1.89` décrit dans le `README.md` racine) — ils ne peuvent pas être validés depuis un
+environnement de développement sans accès à Jitsi/Gemini/Kafka/Docker/Postgres réels, et
+restent donc le travail humain restant avant bascule vers la Phase 2.
 
 ### Critère de bascule vers Phase 2
 

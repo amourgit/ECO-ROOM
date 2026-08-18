@@ -8,7 +8,14 @@ est donc purement mécanique, aucune adaptation d'isolation n'était nécessaire
 particulier : il n'a jamais eu de logique multi-room.
 """
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _now() -> datetime:
+    """timezone-aware, remplace l'ancien datetime.utcnow() (dépréciation Python) — comportement
+    inchangé pour toute comparaison interne à ce module, toutes les valeurs produites ici
+    utilisant systématiquement cette même fonction."""
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -17,7 +24,7 @@ class SpeechEntry:
     speaker_name: str
     text: str
     entry_type: str = "participant"
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_now)
     # Corrèle l'entrée d'entrée (ce qui a été entendu) et l'entrée de sortie
     # (ce que l'agent a répondu) d'un même tour du moteur de parole.
     turn_id: str | None = None
@@ -27,7 +34,7 @@ class ContextStore:
     def __init__(self, room_id: str):
         self.room_id = room_id
         self.entries: list[SpeechEntry] = []
-        self._started_at = datetime.utcnow()
+        self._started_at = _now()
 
     def add(self, speaker_id: str, speaker_name: str,
             text: str, entry_type: str = "participant",
@@ -49,7 +56,7 @@ class ContextStore:
             try:
                 ts = datetime.fromisoformat(e["occurred_at"])
             except (KeyError, ValueError):
-                ts = datetime.utcnow()
+                ts = _now()
             extra = e.get("extra") or {}
             seeded.append(SpeechEntry(
                 speaker_id=e.get("speaker_id") or "",
@@ -74,4 +81,4 @@ class ContextStore:
         return not self.entries
 
     def duration_minutes(self) -> int:
-        return int((datetime.utcnow() - self._started_at).total_seconds() / 60)
+        return int((_now() - self._started_at).total_seconds() / 60)

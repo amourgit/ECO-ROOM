@@ -34,6 +34,31 @@ contre un vrai cluster Jitsi + Gemini, durcissement des cas limites déjà connu
 dans l'ancien `peer` (reconnexion, prejoin bypass, timing du `replaceTrack`) — repris tels quels
 mais à revalider dans ce nouveau contexte d'exécution (un container par room).
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt --break-system-packages
+python -m pytest -q
+```
+
+35 tests, tous verts à ce jour (`tests/`) :
+- `test_state.py`, `test_response_policy.py`, `test_context_store.py`,
+  `test_speaker_tracker.py` — logique pure portée depuis `services/peer`.
+- `test_registry.py` — gating de permissions du catalogue d'outils (doc 01 §9) : outil
+  inconnu, outil non implémenté, capacité refusée, liste blanche `tools_allowed`, exception
+  interceptée — jamais un faux succès silencieux.
+- `test_graph_smoke.py` — **exécute réellement** le graphe LangGraph assemblé
+  (`app/graph/build.py`) avec navigateur/moteur de parole/Kafka **simulés** (`MemorySaver` en
+  lieu et place du `AsyncPostgresSaver` de production) : vérifie le routage d'entrée
+  conditionnel, l'arête conditionnelle `route`, le déclenchement d'un outil (`vision_tools`),
+  et surtout l'**isolation entre deux graphes indépendants** (aucune fuite d'état entre deux
+  `room_id`).
+
+Ce que ces tests NE couvrent PAS (nécessite un environnement de déploiement réel, absent de
+l'environnement où ce squelette a été écrit) : navigateur headless contre un vrai Jitsi,
+session Gemini Live réelle, vrai broker Kafka, vrai `AsyncPostgresSaver` Postgres. C'est le
+critère de bascule vers la Phase 2 du plan de migration (doc 04).
+
 ## Démarrage local (développement)
 
 ```bash
