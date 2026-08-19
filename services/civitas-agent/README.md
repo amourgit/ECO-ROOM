@@ -28,6 +28,11 @@ avec :
 - **Le graphe LangGraph** (`graph/`) assemblé et fonctionnel pour le flux nominal
   (ingestion → mise à jour d'état → routage → raisonnement → action → parole → persistance),
   cf. [`docs/architecture/01-architecture-cible-civitas-agent.md`](../../docs/architecture/01-architecture-cible-civitas-agent.md#6-le-graphe-langgraph--nœuds-explicites).
+- **Le gestionnaire de modèles neutre** (`models/`) — le moteur de parole (Gemini Live par
+  défaut, OpenAI Realtime en alternative) et le modèle de raisonnement (Gemini/OpenAI/
+  Anthropic, optionnel) sont sélectionnés par variables d'environnement
+  (`SPEECH_MODEL_PROVIDER`/`REASONING_MODEL_PROVIDER`, cf. `.env.example`), jamais figés dans
+  le code — cf. [`docs/architecture/05-gestionnaire-de-modeles.md`](../../docs/architecture/05-gestionnaire-de-modeles.md).
 
 Reste à faire avant mise en production (Phase 1 du plan de migration) : tests d'intégration
 contre un vrai cluster Jitsi + Gemini, durcissement des cas limites déjà connus et documentés
@@ -41,7 +46,7 @@ pip install -r requirements-dev.txt --break-system-packages
 python -m pytest -q
 ```
 
-35 tests, tous verts à ce jour (`tests/`) :
+47 tests, tous verts à ce jour (`tests/`) :
 - `test_state.py`, `test_response_policy.py`, `test_context_store.py`,
   `test_speaker_tracker.py` — logique pure portée depuis `services/peer`.
 - `test_registry.py` — gating de permissions du catalogue d'outils (doc 01 §9) : outil
@@ -53,6 +58,12 @@ python -m pytest -q
   conditionnel, l'arête conditionnelle `route`, le déclenchement d'un outil (`vision_tools`),
   et surtout l'**isolation entre deux graphes indépendants** (aucune fuite d'état entre deux
   `room_id`).
+- `test_models_reasoning_base.py`, `test_models_reasoning_factory.py`,
+  `test_models_speech_factory.py` — gestionnaire de modèles neutre (doc 05) : construction de
+  prompt et parsing JSON défensif, sélection de fournisseur, **dégradation gracieuse réelle**
+  quand un SDK de fournisseur n'est pas installé (exécuté dans un environnement où aucun des 3
+  SDK de raisonnement n'est présent — le test valide donc un vrai chemin de repli, pas une
+  simulation).
 
 Ce que ces tests NE couvrent PAS (nécessite un environnement de déploiement réel, absent de
 l'environnement où ce squelette a été écrit) : navigateur headless contre un vrai Jitsi,

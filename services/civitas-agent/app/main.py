@@ -34,10 +34,11 @@ from app.graph.deps import GraphDeps
 from app.kafka import producer as kafka
 from app.kafka.control_ingress import control_event_queue, enqueue_control_event
 from app.memory.client import get_room_history
+from app.models.reasoning.factory import build_reasoning_model
+from app.models.speech.factory import build_speech_engine
 from app.perception.audio_pipe import AudioPipe
 from app.perception.speaker_tracker import SpeakerTracker
 from app.room.config_client import get_agent_context
-from app.speech.gemini_live import GeminiSession
 from app.state import initial_state
 from app.tools.registry import build_default_registry
 
@@ -62,9 +63,10 @@ class AgentRuntime:
         self.speaker_tracker: SpeakerTracker | None = None
         self.event_bus: EventBus | None = None
         self.audio_pipe: AudioPipe | None = None
-        self.speech_engine: GeminiSession | None = None
+        self.speech_engine = None    # app.speech.engine.SpeechEngine — cf. app/models/speech/factory.py
         self.browser: CivitasBrowser | None = None
         self.tool_registry = None
+        self.reasoning_model = None  # app.models.reasoning.base.ReasoningModel | None
         self.graph_deps: GraphDeps | None = None
         self.compiled_graph = None
         self.checkpointer_cm = None
@@ -96,7 +98,7 @@ async def _on_chat_message(sender: str, text: str, participant_id: str):
 
 
 async def _on_speech(text: str, turn_id: str | None):
-    """Callback GeminiSession — réponse générée par l'agent (transcription de sortie)."""
+    """Callback du moteur de parole — réponse générée par l'agent (transcription de sortie)."""
     if not text:
         return
     runtime.context_store.add("", settings.ROOM_ID, text, entry_type="agent", turn_id=turn_id)
@@ -110,13 +112,13 @@ async def _on_speech(text: str, turn_id: str | None):
 
 
 async def _on_audio(pcm_24k: bytes):
-    """Callback GeminiSession — PCM sortant. Transmis au navigateur uniquement en mode audio."""
+    """Callback du moteur de parole — PCM sortant. Transmis au navigateur uniquement en mode audio."""
     if runtime.current_response_mode == "audio" and runtime.audio_pipe:
         await runtime.audio_pipe.send_audio(pcm_24k)
 
 
 async def _on_transcription(text: str, turn_id: str | None):
-    """Callback GeminiSession — transcription ENTRANTE (ce qu'un participant a dit)."""
+    """Callback du moteur de parole — transcription ENTRANTE (ce qu'un participant a dit)."""
     if not text:
         return
     speaker_id = runtime.speaker_tracker.current_speaker()[0] if runtime.speaker_tracker else None
@@ -167,7 +169,8 @@ async def startup():
     runtime.audio_pipe = AudioPipe(settings.ROOM_ID, on_audio_in=lambda pcm: runtime.speech_engine.send_audio(pcm))
     audio_port = await runtime.audio_pipe.start()
 
-    runtime.speech_engine = GeminiSession(
+    runtime.speech_engine = build_speech_engine(
+        settings,
         room_id=settings.ROOM_ID,
         system_instruction=runtime.room_config.get("system_prompt", ""),
         on_speech=_on_speech,
@@ -176,11 +179,20 @@ async def startup():
         context_provider=lambda: runtime.context_store.build_context(settings.CONTEXT_MAX_ENTRIES),
     )
     await runtime.speech_engine.start()
+    log.info(
+        f"[Runtime:{settings.ROOM_ID}] Moteur de parole: {settings.SPEECH_MODEL_PROVIDER} "
+        f"(in={runtime.speech_engine.input_sample_rate}Hz, "
+        f"out={runtime.speech_engine.output_sample_rate}Hz)"
+    )
 
     runtime.browser = CivitasBrowser(
         room_id=settings.ROOM_ID, jitsi_host=settings.JITSI_HOST,
         audio_pipe_port=audio_port, ca_cert_path=settings.JITSI_CA_CERT,
         agent_name=runtime.room_config.get("agent_name", "CIVITAS"),
+        # Débits du moteur de parole réellement configuré — jamais supposés 16k/24k en dur,
+        # cf. docs/architecture/05-gestionnaire-de-modeles.md §5.
+        input_sample_rate=runtime.speech_engine.input_sample_rate,
+        output_sample_rate=runtime.speech_engine.output_sample_rate,
     )
     runtime.browser.on_jitsi_event = _on_jitsi_event
     runtime.browser.on_chat_message = _on_chat_message
@@ -194,12 +206,15 @@ async def startup():
     ))
 
     runtime.tool_registry = build_default_registry(runtime.browser, runtime.speech_engine)
+    runtime.reasoning_model = build_reasoning_model(settings)
+    if runtime.reasoning_model:
+        log.info(f"[Runtime:{settings.ROOM_ID}] Raisonnement outillé actif: {settings.REASONING_MODEL_PROVIDER}")
 
     runtime.graph_deps = GraphDeps(
         room_id=settings.ROOM_ID, room_config=runtime.room_config,
         browser=runtime.browser, speech_engine=runtime.speech_engine,
         tool_registry=runtime.tool_registry, context_store=runtime.context_store,
-        kafka=kafka,
+        kafka=kafka, reasoning_model=runtime.reasoning_model,
     )
 
     runtime.checkpointer_cm = build_checkpointer()

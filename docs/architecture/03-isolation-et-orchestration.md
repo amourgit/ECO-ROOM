@@ -98,7 +98,33 @@ Même principe, avec `Deployment`/`Job` Kubernetes à la place de `docker run`. 
 **interchangeable** derrière une interface (`app/docker_runtime.py` → `AgentRuntimeProvider`,
 §4.3) : passer à Kubernetes plus tard ne change que l'implémentation de ce provider, jamais le
 reste de l'Orchestrateur ni des CIVITAS Agents. Non développé dans cette phase — le README du
-projet cible explicitement un déploiement mono-serveur (`192.168.1.89`, Docker Compose).
+projet cible explicitement un déploiement mono-serveur (IP hôte auto-détectée au provisioning
+par `scripts/lib/jitsi_common.sh::detect_server_ip()` — jamais une adresse fixe en dur, cf.
+§3.1bis ci-dessous —, orchestré par Docker Compose).
+
+### 3.1bis Correction — il n'existe aucune IP fixée en dur dans le projet
+
+Une première version de ce document citait par erreur une adresse IP fixe comme s'il
+s'agissait d'une constante de déploiement. **Ce n'est pas le cas et ça ne doit jamais l'être** :
+`scripts/lib/jitsi_common.sh::detect_server_ip()` résout l'IP du serveur dans cet ordre :
+
+```
+1. variable d'environnement CIVITAS_IP si déjà positionnée dans le shell courant
+2. valeur déjà écrite dans /opt/civitas/config/civitas.env par 01_system_base.sh
+   (persistée lors d'un provisioning précédent, pour rester stable entre deux exécutions
+   de scripts sur la même machine)
+3. à défaut, auto-détection via la route par défaut du système (IP source utilisée pour
+   sortir vers Internet)
+```
+
+Toute IP visible dans `README.md`, `DOCUMENTATION_API.md` ou ailleurs dans la documentation
+existante n'est qu'une **valeur d'exemple illustrative**, propre à la machine sur laquelle ces
+documents ont été rédigés — jamais une constante du système. `civitas-orchestrator` et
+`civitas-agent` (nouveaux services de cette refonte) n'introduisent et ne doivent introduire
+**aucune** IP en dur : ils s'adressent exclusivement par nom de service Docker
+(`civitas-kafka`, `civitas-room-config`, `civitas-agent-<slug>`…) résolu par le DNS interne du
+réseau `civitas-net`, jamais par IP — cf. `.env.example` des deux services (`KAFKA_BOOTSTRAP`,
+`ROOM_CONFIG_URL`, `AGENT_NETWORK`), qui ne contiennent que des noms de service, aucune IP.
 
 ---
 

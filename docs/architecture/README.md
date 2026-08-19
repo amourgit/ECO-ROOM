@@ -23,6 +23,9 @@
    autres rooms, et l'évolution de `room-spawner` en `civitas-orchestrator`.
 5. **[`04-plan-migration.md`](./04-plan-migration.md)** — plan d'exécution phasé, fichier par
    fichier, avec critères de bascule et stratégie de rollback à chaque étape.
+6. **[`05-gestionnaire-de-modeles.md`](./05-gestionnaire-de-modeles.md)** — le modèle utilisé
+   par CIVITAS ne sera pas toujours Gemini : gestionnaire de modèles neutre, configurable par
+   variables d'environnement, pour le moteur de parole ET le modèle de raisonnement.
 
 ## Principes non négociables de cette refonte
 

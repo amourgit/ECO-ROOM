@@ -407,16 +407,19 @@ non nommées comme des "outils". La cible relie enfin ce schéma à `tools/regis
 
 ---
 
-## 10. Interfaces (ports) pour rester remplaçable
+## 10. Gestionnaire de modèles neutre — le modèle ne sera pas toujours Gemini
 
-Deux points de variabilité anticipés, matérialisés en interfaces Python (`Protocol`/ABC) plutôt
-qu'en appels directs, sans changer le choix par défaut (Gemini Live) :
+Deux points de variabilité anticipés ici sont désormais réalisés en détail dans un document
+dédié : [`05-gestionnaire-de-modeles.md`](./05-gestionnaire-de-modeles.md).
 
 - **`speech/engine.py`** — port `SpeechEngine` (`start`, `stop`, `send_audio`, `send_text`,
-  `send_image`, callbacks `on_transcription`/`on_speech`/`on_audio`). `gemini_live.py`
-  l'implémente. Permettra plus tard un pipeline décomposé (VAD dédié + ASR dédié + TTS dédié)
-  sans toucher au graphe LangGraph ni aux outils — **non fait dans cette phase**, juste rendu
-  possible.
+  `send_image`, `input_sample_rate`/`output_sample_rate`, callbacks
+  `on_transcription`/`on_speech`/`on_audio`). `app/speech/gemini_live.py` et
+  `app/models/speech/openai_realtime.py` l'implémentent tous les deux, sélectionnés par
+  `SPEECH_MODEL_PROVIDER` (app/config.py) — jamais un choix figé dans le code.
+- **`app/models/reasoning/`** — port `ReasoningModel`, optionnel (`REASONING_MODEL_PROVIDER`),
+  qui vient enrichir le nœud `reason` (§6) au-delà de l'heuristique historique quand il est
+  configuré, avec 3 fournisseurs réels (Gemini, OpenAI, Anthropic).
 - **`tools/platform_tools.py`** — clients vers la CIVITAS Platform (domaine 4) définis par
   interface HTTP simple (`get_user`, `get_meeting`, `create_task`, `create_minutes`,
   `create_vote`…), pour que l'ajout de nouvelles APIs métier n'impacte jamais le graphe ni le
@@ -430,3 +433,4 @@ qu'en appels directs, sans changer le choix par défaut (Gemini Live) :
   sur l'API réelle `IJitsiConference`/`lib-jitsi-meet`) : [`02-catalogue-outils-agent.md`](./02-catalogue-outils-agent.md)
 - **Isolation stricte par room, orchestrateur, déploiement** : [`03-isolation-et-orchestration.md`](./03-isolation-et-orchestration.md)
 - **Plan de migration phasé, fichier par fichier** : [`04-plan-migration.md`](./04-plan-migration.md)
+- **Gestionnaire de modèles neutre** (le modèle ne sera pas toujours Gemini) : [`05-gestionnaire-de-modeles.md`](./05-gestionnaire-de-modeles.md)

@@ -28,6 +28,8 @@ désormais [`docs/architecture/`](./docs/architecture/README.md) :
    isolation stricte par room, nouvel orchestrateur.
 5. [`docs/architecture/04-plan-migration.md`](./docs/architecture/04-plan-migration.md) — plan
    de bascule phasé, fichier par fichier.
+6. [`docs/architecture/05-gestionnaire-de-modeles.md`](./docs/architecture/05-gestionnaire-de-modeles.md) —
+   gestionnaire de modèles neutre (le modèle utilisé ne sera pas toujours Gemini).
 
 **Statut** : squelette de code posé dans `services/civitas-agent/` (remplace `services/peer/`,
 cf. [`services/peer/DEPRECATED.md`](./services/peer/DEPRECATED.md)) et

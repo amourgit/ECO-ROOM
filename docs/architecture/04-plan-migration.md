@@ -41,7 +41,8 @@
 
 - Le squelette `services/civitas-agent` n'a pas encore été **exécuté** contre un vrai cluster
   Jitsi (pas de `docker build` + `docker run` réel effectué dans cette session — l'environnement
-  d'édition n'a pas accès au serveur `192.168.1.89`, à Gemini, ni à un Jitsi déployé).
+  d'édition n'a pas accès au serveur de déploiement réel (dont l'IP est auto-détectée au
+  provisioning, jamais fixée en dur — cf. doc 03 §3.1bis), à Gemini, ni à un Jitsi déployé).
 - Les outils marqués 🔧 P1 dans le catalogue (doc 02) ne sont pas implémentés — seulement
   déclarés dans le registre avec un statut explicite (`NotImplementedError` documenté, jamais un
   faux succès silencieux).
@@ -97,7 +98,9 @@ Ce que ces tests NE remplacent PAS — et qui reste le véritable critère de so
   (`civitas-orchestrator`).
 
 Ces quatre points nécessitent un environnement de déploiement réel (le serveur
-`192.168.1.89` décrit dans le `README.md` racine) — ils ne peuvent pas être validés depuis un
+le serveur de déploiement réel dont l'IP est auto-détectée au provisioning par
+`scripts/lib/jitsi_common.sh::detect_server_ip()` (cf. doc 03 §3.1bis — jamais une IP fixée en
+dur) — ils ne peuvent pas être validés depuis un
 environnement de développement sans accès à Jitsi/Gemini/Kafka/Docker/Postgres réels, et
 restent donc le travail humain restant avant bascule vers la Phase 2.
 

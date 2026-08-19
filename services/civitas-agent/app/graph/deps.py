@@ -18,7 +18,10 @@ class GraphDeps:
     room_id: str
     room_config: dict                 # chargé une fois au démarrage (app/room/config_client.py)
     browser: Any                      # app.browser.driver.CivitasBrowser
-    speech_engine: Any                # app.speech.engine.SpeechEngine (GeminiSession par défaut)
+    speech_engine: Any                # app.speech.engine.SpeechEngine (cf. app/models/speech/factory.py)
     tool_registry: Any                # app.tools.registry.ToolRegistry
     context_store: Any                # app.context.store.ContextStore (mémoire niveau 1)
     kafka: Any                        # app.kafka.producer (module)
+    reasoning_model: Any = None       # app.models.reasoning.base.ReasoningModel | None —
+                                       # None = heuristique historique conservée (doc 00 §5.6),
+                                       # cf. app/models/reasoning/factory.py et doc 05 §4

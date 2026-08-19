@@ -34,7 +34,8 @@ class GeminiSession:
 
     def __init__(self, room_id: str, system_instruction: str,
                  on_speech: callable, on_audio: callable,
-                 on_transcription: callable, context_provider: callable = None):
+                 on_transcription: callable, context_provider: callable = None,
+                 model: str = MODEL, voice: str = "Aoede"):
         self.room_id = room_id
         self.system_instruction = system_instruction
         self.on_speech = on_speech
@@ -44,6 +45,8 @@ class GeminiSession:
         # à chaque (re)connexion — cf. _run_session(). Branché sur ContextStore.build_context
         # (app/context/store.py), lecture RAM pure.
         self.context_provider = context_provider
+        self._model = model
+        self._voice = voice
         self._client = None
         self._session = None
         self._ready = asyncio.Event()
@@ -58,10 +61,19 @@ class GeminiSession:
         self._output_buf: list[str] = []
         self._current_turn_id: str | None = None
 
+    # ── Contrat SpeechEngine (app/speech/engine.py, doc 05) ────────────────────────────────
+    @property
+    def input_sample_rate(self) -> int:
+        return 16000
+
+    @property
+    def output_sample_rate(self) -> int:
+        return 24000
+
     async def start(self):
         self._client = genai.Client(
             http_options={"api_version": "v1beta", "timeout": 60},
-            api_key=settings.GEMINI_API_KEY,
+            api_key=settings.SPEECH_MODEL_API_KEY,
         )
         self._running = True
         self._task = asyncio.create_task(self._run_loop())
@@ -88,12 +100,12 @@ class GeminiSession:
             system_instruction=self.system_instruction,
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Aoede")
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=self._voice)
                 )
             ),
         )
         try:
-            async with self._client.aio.live.connect(model=MODEL, config=config) as session:
+            async with self._client.aio.live.connect(model=self._model, config=config) as session:
                 self._session = session
                 self._ready.set()
                 self._hb_task = asyncio.create_task(self._heartbeat(session))

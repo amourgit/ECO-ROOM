@@ -69,7 +69,7 @@ RTC_SPY_JS = """
 # AUDIO BRIDGE — VERBATIM depuis services/peer/app/browser/browser.py
 # ─────────────────────────────────────────────────────────────────────────────
 AUDIO_BRIDGE_JS = """
-(async (wsPort) => {
+(async (wsPort, inputSampleRate, outputSampleRate) => {
   if (window._civitasAudioBridge) return 'already_running';
   window._civitasAudioBridge = true;
 
@@ -83,7 +83,12 @@ AUDIO_BRIDGE_JS = """
     setTimeout(() => rej(new Error('WS timeout')), 5000);
   });
 
-  const inCtx = new AudioContext({ sampleRate: 16000 });
+  // Débits paramétrés par le fournisseur de moteur de parole configuré (cf.
+  // app/speech/engine.py SpeechEngine.input_sample_rate/output_sample_rate,
+  // docs/architecture/05-gestionnaire-de-modeles.md §5) — plus jamais figés en dur ici,
+  // pour qu'un changement de fournisseur (ex: Gemini Live 16kHz -> OpenAI Realtime 24kHz)
+  // soit transparent pour ce script.
+  const inCtx = new AudioContext({ sampleRate: inputSampleRate });
   window._civitasInCtx = inCtx;
 
   await inCtx.audioWorklet.addModule(
@@ -141,7 +146,7 @@ AUDIO_BRIDGE_JS = """
     }
   };
 
-  const outCtx  = new AudioContext({ sampleRate: 24000 });
+  const outCtx  = new AudioContext({ sampleRate: outputSampleRate });
   const outDest = outCtx.createMediaStreamDestination();
   window._civitasOutStream = outDest.stream;
   window._civitasOutCtx    = outCtx;
@@ -151,7 +156,7 @@ AUDIO_BRIDGE_JS = """
     if (!queue.length) { playing = false; return; }
     playing = true;
     const samples = new Int16Array(queue.shift());
-    const buf  = outCtx.createBuffer(1, samples.length, 24000);
+    const buf  = outCtx.createBuffer(1, samples.length, outputSampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < samples.length; i++) data[i] = samples[i] / 32768.0;
     const src = outCtx.createBufferSource();
@@ -366,12 +371,19 @@ class CivitasBrowser:
 
     def __init__(self, room_id: str, jitsi_host: str,
                  audio_pipe_port: int, ca_cert_path: str,
-                 agent_name: str = "CIVITAS"):
+                 agent_name: str = "CIVITAS",
+                 input_sample_rate: int = 16000, output_sample_rate: int = 24000):
         self.room_id = room_id
         self.jitsi_host = jitsi_host
         self.audio_pipe_port = audio_pipe_port
         self.ca_cert_path = ca_cert_path
         self.agent_name = agent_name
+        # Débits du moteur de parole configuré (doc 05 §5) — plus jamais supposés 16k/24k en
+        # dur : ces valeurs par défaut ne servent qu'à un usage de ce driver sans passer par
+        # la factory (tests, scripts ponctuels) ; en production, app/main.py les fournit
+        # toujours explicitement depuis `speech_engine.input_sample_rate`/`output_sample_rate`.
+        self.input_sample_rate = input_sample_rate
+        self.output_sample_rate = output_sample_rate
 
         self._playwright = None
         self._browser: Browser | None = None
@@ -462,7 +474,10 @@ class CivitasBrowser:
         await self._page.evaluate(RTC_SPY_JS)
         log.info(f"[Browser:{self.room_id}] RTC spy \u2713")
 
-        result = await self._page.evaluate(f"({AUDIO_BRIDGE_JS})({self.audio_pipe_port})")
+        result = await self._page.evaluate(
+            f"({AUDIO_BRIDGE_JS})({self.audio_pipe_port}, "
+            f"{self.input_sample_rate}, {self.output_sample_rate})"
+        )
         log.info(f"[Browser:{self.room_id}] Audio bridge: {result}")
 
         result = await self._page.evaluate(f"({JITSI_EVENTS_JS})(window.__civitasEvent)")
