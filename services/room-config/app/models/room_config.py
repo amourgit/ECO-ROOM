@@ -24,6 +24,17 @@ class RoomConfig(Base):
     # PLAN_SYNCHRONISATION_ROOMS_JITSI.md). L'ancienne écriture remplaçait
     # aussi TOUT extra_config au passage (perte de données silencieuse).
     peer_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Successeur de peer_enabled — CIVITAS Agent Runtime remplace le peer
+    # (cf. docs/architecture/, en particulier 04-plan-migration.md "Migration
+    # du schéma room_configs"). Colonne ADDITIVE : coexiste avec peer_enabled
+    # tant que services/room-spawner (déprécié) et services/civitas-orchestrator
+    # tournent en parallèle pendant la bascule progressive — les deux colonnes
+    # sont synchronisées applicativement à chaque écriture (jamais par
+    # trigger SQL) par app/services/room_config_service.py::_sync_agent_peer_enabled.
+    # peer_enabled sera supprimée en Phase 6 du plan de migration, une fois
+    # room-spawner désactivé (migration Alembic B, non encore écrite : elle ne
+    # le sera qu'à ce moment-là, pas par anticipation).
+    agent_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     invocation_keywords: Mapped[list] = mapped_column(JSON, default=lambda: ["civitas"])
     tools_allowed: Mapped[list] = mapped_column(JSON, default=list)
     extra_config: Mapped[dict] = mapped_column(JSON, default=dict)

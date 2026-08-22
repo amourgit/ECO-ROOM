@@ -19,7 +19,7 @@ from app.docker_runtime import DockerAgentRuntimeProvider
 from app.forwarder import forward_event
 from app.kafka_consumer import consume_forever
 from app.registry import AgentRegistry
-from app.room_config_client import is_agent_enabled
+from app.room_config_client import is_agent_enabled, set_agent_enabled, set_behavior_mode
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -125,31 +125,81 @@ async def moderator_status(room_id: str, _: None = Depends(_check_token)):
 
 @app.post("/moderator/inject/{room_id}")
 async def moderator_inject(room_id: str, _: None = Depends(_check_token)):
+    """
+    Injection manuelle — équivalent direct de l'ancien `inject_peer`
+    (services/room-spawner/app/spawner.py) : persiste `agent_enabled=True` PUIS spawn si pas
+    déjà actif (même ordre que l'original : la persistance a lieu même si le spawn échoue
+    ensuite, pour qu'un rattrapage Kafka ultérieur retrouve la room activée).
+    """
+    await set_agent_enabled(room_id, True)
     if registry.is_active(room_id):
-        return {"ok": True, "already_active": True}
+        return {"ok": True, "already_active": True, "status": "already_active"}
     handle = await runtime_provider.spawn(room_id, env={})
     registry.put(handle)
     registry.set_status(room_id, "healthy")
-    return {"ok": True, "container": handle["container_name"]}
+    return {"ok": True, "status": "injected", "container": handle["container_name"]}
 
 
 @app.post("/moderator/eject/{room_id}")
 async def moderator_eject(room_id: str, _: None = Depends(_check_token)):
-    handle = _require_handle(room_id)
+    """
+    Éjection manuelle — équivalent direct de l'ancien `eject_peer` : persiste
+    `agent_enabled=False` PUIS détruit le container actif s'il y en a un (même ordre que
+    l'original — cf. services/room-spawner/app/spawner.py::eject_peer).
+    """
+    await set_agent_enabled(room_id, False)
+    handle = registry.get(room_id)
+    if not handle:
+        return {"ok": True, "status": "not_active"}
     await runtime_provider.teardown(handle)
     registry.remove(room_id)
-    return {"ok": True}
+    return {"ok": True, "status": "ejected"}
 
 
 @app.post("/moderator/standby/{room_id}")
 async def moderator_standby(room_id: str, _: None = Depends(_check_token)):
-    handle = _require_handle(room_id)
-    return await agent_client.shutdown(handle)  # arrêt propre — cf. teardown ordonné, doc 03 §4.3
+    """
+    Met l'agent en mode figurant — présent dans la room mais silencieux, il écoute mais
+    n'intervient jamais. Équivalent direct de l'ancien `set_peer_standby`
+    (services/room-spawner/app/spawner.py) : persiste `behavior_mode=silent` SANS jamais
+    toucher au container (ce n'est PAS une éjection — corrigé par rapport à une première
+    version de ce module qui appelait, à tort, `agent_client.shutdown()` ici, cf.
+    docs/architecture/04-plan-migration.md).
+
+    Amélioration délibérée par rapport à l'original : si un agent est déjà actif pour cette
+    room, on lui demande de recharger sa config immédiatement (`reload_config`) pour que le
+    mode silencieux prenne effet EN DIRECT — l'ancien `set_peer_standby` ne faisait que le
+    PATCH côté base, sans jamais notifier le peer déjà connecté (celui-ci ne relisait sa
+    config qu'à son prochain démarrage, cf. services/peer/app/peer/instance.py::start,
+    `self.context` chargé une seule fois). Documenté explicitement, pas silencieux.
+    """
+    ok = await set_behavior_mode(room_id, "silent")
+    handle = registry.get(room_id)
+    if handle:
+        try:
+            await agent_client.reload_config(handle)
+        except Exception as e:
+            log.warning(f"[Orchestrator] reload_config (standby) {room_id}: {e}")
+    return {"ok": ok, "status": "standby", "live_reload": bool(handle)}
 
 
 @app.post("/moderator/activate/{room_id}")
 async def moderator_activate(room_id: str, _: None = Depends(_check_token)):
-    return await moderator_inject(room_id)
+    """
+    Sort l'agent du mode figurant — équivalent direct de l'ancien `activate_peer`
+    (`behavior_mode=on_call`). NE spawn PAS un nouvel agent (corrigé par rapport à une
+    première version de ce module qui aliasait, à tort, `activate` sur `inject` — l'original
+    suppose un agent déjà actif, mis en veille via `/standby`, jamais éjecté). Même
+    amélioration de rechargement en direct que `/standby` ci-dessus.
+    """
+    ok = await set_behavior_mode(room_id, "on_call")
+    handle = registry.get(room_id)
+    if handle:
+        try:
+            await agent_client.reload_config(handle)
+        except Exception as e:
+            log.warning(f"[Orchestrator] reload_config (activate) {room_id}: {e}")
+    return {"ok": ok, "status": "active", "live_reload": bool(handle)}
 
 
 @app.post("/moderator/kick/{room_id}")

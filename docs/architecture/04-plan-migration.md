@@ -11,9 +11,9 @@
 | Phase | Objectif | Statut à l'issue de cette session |
 |---|---|---|
 | **0** | Documentation + squelette de code | ✅ Livré |
-| **1** | `civitas-agent` — parité fonctionnelle avec `peer`, une seule room, lancée manuellement | 🔶 En cours — squelette posé, **tests unitaires écrits et verts** (35 tests, cf. §Tests unitaires ci-dessous), intégration réelle (Jitsi/Gemini/Kafka/Postgres) restant à faire |
-| **2** | `civitas-orchestrator` — spawn/route/teardown automatique, bascule progressive | À faire |
-| **3** | Catalogue d'outils P0 (doc 02) implémenté et testé | À faire |
+| **1** | `civitas-agent` — parité fonctionnelle avec `peer`, une seule room, lancée manuellement | 🔶 En cours — squelette posé, **tests unitaires écrits et verts** (49 tests, cf. §Tests unitaires ci-dessous), intégration réelle (Jitsi/Gemini/Kafka/Postgres) restant à faire |
+| **2** | `civitas-orchestrator` — spawn/route/teardown automatique, bascule progressive | 🔶 En cours — squelette posé, **migration Alembic A appliquée et validée contre un vrai Postgres**, endpoints modérateur corrigés et testés (23 tests), spawn/teardown Docker réel restant à valider (cf. §Phase 2 ci-dessous) |
+| **3** | Catalogue d'outils P0 (doc 02) implémenté et testé | 🔶 Largement fait dès la Phase 0 — tous les outils P0 sont déjà enregistrés dans `tools/registry.py` avec une implémentation réelle contre `browser/driver.py` ; reste à valider contre un vrai Jitsi (Phase 1) |
 | **4** | Domaine 4 — `platform_tools`, `rag_tools`, Qdrant/MinIO | À faire |
 | **5** | Catalogue P1 (breakout rooms, sondages, E2EE, streaming) | À faire |
 | **6** | Bascule finale + suppression de `services/peer` et `services/room-spawner` | À faire, conditionnée aux phases précédentes |
@@ -77,32 +77,58 @@ kick/mute/chat/vision, réhydratation mémoire, reconnexion Gemini.
 
 ### Tests unitaires — écrits et exécutés avec succès dans cette session
 
-`services/civitas-agent/tests/` (35 tests, tous verts) et `services/civitas-orchestrator/tests/`
-(9 tests, tous verts) — cf. les sections "Tests" des `README.md` respectifs pour le détail. Ces
-tests couvrent la **logique pure** avec des dépendances **simulées** : ils prouvent que le
-graphe LangGraph s'assemble et s'exécute réellement (routage d'entrée conditionnel, arête
-`route`, déclenchement d'outil via le registre, isolation d'état entre deux graphes
-indépendants), que le gating de permissions (`tools/registry.py`, doc 01 §9) refuse
-correctement (jamais un faux succès silencieux), et que `slugify_room_id`
-(`civitas-orchestrator`) ne fait jamais collisionner deux rooms distinctes.
+`services/civitas-agent/tests/` (49 tests), `services/civitas-orchestrator/tests/` (23 tests)
+et `services/room-config/tests/` (10 tests) — **82 tests au total, tous verts** — cf. les
+sections "Tests" des `README.md` respectifs pour le détail. Deux niveaux de rigueur bien
+distincts, à ne pas confondre :
 
-Ce que ces tests NE remplacent PAS — et qui reste le véritable critère de sortie de Phase 1 :
+- **`civitas-agent`/`civitas-orchestrator`** : logique pure avec des dépendances **simulées**
+  (navigateur, moteur de parole, Kafka, Docker mockés). Ils prouvent que le graphe LangGraph
+  s'assemble et s'exécute réellement (routage d'entrée conditionnel, arête `route`,
+  déclenchement d'outil via le registre, isolation d'état entre deux graphes indépendants, et
+  désormais le **rechargement de configuration en direct sans reconstruction du graphe**), que
+  le gating de permissions (`tools/registry.py`, doc 01 §9) refuse correctement (jamais un faux
+  succès silencieux), que `slugify_room_id` ne fait jamais collisionner deux rooms distinctes,
+  et que les endpoints `/moderator/*` reproduisent fidèlement (ou améliorent délibérément, cf.
+  §Phase 2 ci-dessus) le comportement de l'original `room-spawner`.
+- **`room-config`** : contre une **vraie base Postgres 16** (installée dans l'environnement de
+  développement via `apt` spécifiquement pour cette validation), pas une simulation — la
+  migration `0002_add_agent_enabled` a été exécutée pour de vrai contre un schéma
+  pré-migration reconstruit fidèlement, avec un backfill vérifié ligne par ligne sur des
+  données hétérogènes, plus la réversibilité complète (downgrade/re-upgrade). C'est le niveau
+  de validation le plus élevé atteignable sans le serveur de déploiement réel lui-même.
+
+Ce travail a aussi mis au jour et corrigé, en cours de route, quatre défauts réels — pas
+seulement écrit du code présumé correct (cf. §Phase 2 ci-dessus pour le détail complet de
+chacun) :
+1. `is_agent_enabled()` lisait le mauvais niveau d'imbrication JSON (`civitas-orchestrator`).
+2. `/moderator/standby` détruisait le container au lieu de simplement rendre l'agent silencieux
+   (`civitas-orchestrator`).
+3. `/moderator/activate` spawnait un nouveau container au lieu de réactiver l'agent déjà actif
+   (`civitas-orchestrator`).
+4. `DockerAgentRuntimeProvider` se connectait à Docker dès l'import du module, rendant
+   `civitas-orchestrator` impossible à tester (et fragile au démarrage) sans démon Docker déjà
+   disponible.
+
+Ce que ces tests NE remplacent PAS — et qui reste le véritable critère de sortie des Phases 1
+et 2 :
 
 - Rejeu des scénarios déjà documentés dans `DOCUMENTATION_API.md` §0 et §9 (cycle de vie complet
   d'un agent dans une room), adaptés à `civitas-agent`, **contre un vrai cluster Jitsi**.
-- Une session Gemini Live réelle (audio bidirectionnel, reconnexion en conditions réelles).
-- Un vrai broker Kafka et un vrai `AsyncPostgresSaver` Postgres (le smoke test du graphe utilise
-  `MemorySaver`, en mémoire, précisément parce qu'aucun Postgres n'est accessible dans
-  l'environnement où ce squelette a été écrit).
-- Un vrai daemon Docker pour valider `DockerAgentRuntimeProvider.spawn/teardown`
-  (`civitas-orchestrator`).
+- Une session Gemini Live (ou OpenAI Realtime, doc 05) réelle, avec un vrai flux audio Jitsi.
+- Un vrai broker Kafka et un vrai `AsyncPostgresSaver` Postgres pour le checkpoint LangGraph (le
+  smoke test du graphe utilise `MemorySaver`, en mémoire — noter que `room-config`, lui,
+  utilise déjà un vrai Postgres, cf. ci-dessus ; seul le checkpoint LangGraph du CIVITAS Agent
+  lui-même reste non testé contre un vrai Postgres).
+- Un vrai daemon Docker pour valider `DockerAgentRuntimeProvider.spawn/teardown` en conditions
+  réelles (la logique de connexion paresseuse est corrigée et le reste du provider est écrit,
+  mais l'appel réel à l'API Docker n'a pu être exercé).
 
-Ces quatre points nécessitent un environnement de déploiement réel (le serveur
-le serveur de déploiement réel dont l'IP est auto-détectée au provisioning par
-`scripts/lib/jitsi_common.sh::detect_server_ip()` (cf. doc 03 §3.1bis — jamais une IP fixée en
-dur) — ils ne peuvent pas être validés depuis un
-environnement de développement sans accès à Jitsi/Gemini/Kafka/Docker/Postgres réels, et
-restent donc le travail humain restant avant bascule vers la Phase 2.
+Ces points nécessitent le serveur de déploiement réel dont l'IP est auto-détectée au
+provisioning par `scripts/lib/jitsi_common.sh::detect_server_ip()` (cf. doc 03 §3.1bis — jamais
+une IP fixée en dur) — ils ne peuvent pas être validés depuis un environnement de développement
+sans accès à Jitsi/Gemini/Kafka/Docker réels, et restent donc le travail restant avant bascule
+vers la Phase 3.
 
 ### Critère de bascule vers Phase 2
 
@@ -114,39 +140,129 @@ parité observée sur les 5 actions déjà en production (`send_chat`, `send_tex
 
 ## Phase 2 — `civitas-orchestrator` : spawn/route/teardown automatique
 
-### Fichiers à finaliser (scaffoldés en Phase 0)
+### Fichiers finalisés (scaffoldés en Phase 0, complétés et corrigés dans cette session)
 
 1. `app/kafka_consumer.py` — port direct de `services/room-spawner/app/kafka_consumer.py`
-   (même topics, même sémantique at-least-once).
-2. `app/registry.py` — implémenté en Phase 0 (structure `AgentHandle`/`AgentRegistry`).
-3. `app/docker_runtime.py` — implémenter `DockerAgentRuntimeProvider` avec le SDK `docker`
-   Python (`pip install docker`), labels `civitas.agent=true` + `civitas.room_id=<room_id>`
-   pour permettre la reconstruction du registre (doc 03 §4.5).
-4. `app/forwarder.py` — implémenté en Phase 0 (structure simple, cf. doc 03 §4.6).
+   (même topics, même sémantique at-least-once). Inchangé depuis Phase 0.
+2. `app/registry.py` — implémenté en Phase 0 (structure `AgentHandle`/`AgentRegistry`), testé
+   (`tests/test_registry.py`).
+3. `app/docker_runtime.py` — `DockerAgentRuntimeProvider` avec le SDK `docker` Python, labels
+   `civitas.agent=true` + `civitas.room_id=<room_id>` pour la reconstruction du registre
+   (doc 03 §4.5). **Corrigé dans cette session** : la connexion au démon Docker
+   (`docker.from_env()`) se faisait à tort dans `__init__`, empêchant `app.main` d'être ne
+   serait-ce qu'importé sans un démon Docker déjà actif, et aurait fait planter l'Orchestrateur
+   au démarrage sur une indisponibilité Docker transitoire, avant même de pouvoir servir
+   `/health`. Rendue paresseuse (propriété `_client`, connexion différée au premier usage réel)
+   — trouvé en tentant précisément de tester ce module dans un environnement sans démon Docker.
+4. `app/forwarder.py` — implémenté en Phase 0, inchangé.
 5. `app/agent_client.py` — client HTTP vers `/admin/*` d'un agent précis (remplace
-   `services/room-spawner/app/peer_client.py`, même contrat de sortie pour compatibilité CLI).
-6. `app/main.py` — reprendre les routes `/moderator/*` de `room-spawner` à l'identique
-   (contrat HTTP conservé pour ne pas casser `cli/civitas` immédiatement), en les faisant
-   pointer vers `agent_client` + `registry` au lieu de `peer_client` + appel à un service unique.
+   `services/room-spawner/app/peer_client.py`). Complété dans cette session avec
+   `reload_config()` (cf. §Rechargement en direct ci-dessous).
+6. `app/room_config_client.py` — **bug réel corrigé** : `is_agent_enabled()` lisait
+   `agent_enabled`/`peer_enabled` à la racine de la réponse `/rooms/{room_id}/context`, alors
+   que ces deux champs sont imbriqués sous `permissions` (`AgentContextResponse`, cf.
+   `services/room-config/app/schemas/room_config.py`) — exactement comme l'original
+   `is_peer_enabled()` de `room-spawner` le lisait déjà correctement. Sans cette correction,
+   `is_agent_enabled()` serait systématiquement retombé sur son défaut `True`, quel que soit
+   l'état réel persisté — le même bug que celui déjà documenté et corrigé côté `peer_enabled`
+   avant cette session (commentaire "Corrige le bug §2.3/§7.5 du plan" dans
+   `room_config_service.py::build_agent_context`). Corrigé + testé
+   (`tests/test_room_config_client.py`, 6 tests).
+7. `app/main.py` — routes `/moderator/*` **vérifiées ligne par ligne contre l'original**
+   (`services/room-spawner/app/spawner.py`) plutôt que déduites de son nom, ce qui a révélé
+   deux vraies divergences de comportement corrigées dans cette session (cf.
+   §Corrections de parité ci-dessous). Testé (`tests/test_moderator_routes.py`, 9 tests).
+
+### Corrections de parité — deux bugs de comportement trouvés en revérifiant l'original
+
+La Phase 0 avait scaffoldé `/moderator/standby` et `/moderator/activate` en devinant leur
+comportement à partir de leur nom plutôt qu'en relisant `services/room-spawner/app/spawner.py`
+ligne par ligne. Cette relecture, faite dans cette session avant de considérer la Phase 2
+"finalisée", a révélé que **standby ne coupe jamais l'agent** — `set_peer_standby`
+(l'original) ne fait qu'un `PATCH behavior_mode=silent` sur `room-config`, l'agent reste
+connecté à la room et continue d'écouter, il se contente de ne plus intervenir. Un agent "en
+standby" est un figurant silencieux, pas un agent éjecté.
+
+| Endpoint | Comportement scaffoldé en Phase 0 (incorrect) | Comportement réel de l'original, désormais reproduit |
+|---|---|---|
+| `/moderator/standby` | Appelait `agent_client.shutdown()` — détruisait le container | `PATCH behavior_mode=silent` sur room-config, container jamais touché |
+| `/moderator/activate` | Aliasait sur `/moderator/inject` — spawnait un nouveau container | `PATCH behavior_mode=on_call`, aucun spawn (suppose un agent déjà actif, éventuellement en standby) |
+
+Les deux sont désormais corrigés dans `app/main.py`, avec des tests de régression dédiés
+(`test_standby_never_tears_down_the_container`,
+`test_activate_never_spawns_a_new_container`) qui échoueraient si cette erreur était
+réintroduite.
+
+### Rechargement en direct — amélioration délibérée au-delà du comportement original
+
+En vérifiant l'original, une limitation préexistante est apparue : `PeerInstance.start()`
+(`services/peer/app/peer/instance.py`) charge `self.context` (dont `behavior_mode`) **une
+seule fois**, jamais rafraîchi. `set_peer_standby`/`activate_peer` ne font qu'un `PATCH` côté
+base — ils ne notifient jamais le peer déjà connecté. Un `/moderator/standby` sur une room
+active ne prenait donc réellement effet qu'au **prochain redémarrage** du peer, jamais en
+direct — une limitation déjà présente dans le système actuel, pas quelque chose introduit par
+cette refonte.
+
+L'architecture LangGraph rend une vraie correction naturelle et peu risquée, donc **faite
+délibérément dans cette session**, documentée explicitement plutôt que silencieuse :
+
+1. `services/civitas-agent/app/graph/nodes/routing.py` relit désormais `deps.room_config`
+   (`behavior_mode`, `invocation_keywords`, `oral_request_keywords`) à **chaque** invocation du
+   nœud `route`, plutôt que de les capturer une seule fois à la construction du graphe.
+2. Nouvelle route `POST /admin/reload_config` (`services/civitas-agent/app/main.py`) : relit
+   la config depuis room-config et met à jour `runtime.room_config` **en place**
+   (`dict.clear()` + `dict.update()`, jamais de réassignation) — `GraphDeps.room_config`
+   référence le même objet, donc voit le changement immédiatement, sans reconstruire le graphe.
+3. `civitas-orchestrator` appelle cette route juste après avoir persisté le nouveau
+   `behavior_mode`, dans `/moderator/standby` et `/moderator/activate`.
+
+Validé par un test dédié qui invoque le **même graphe compilé** deux fois, avec une mutation
+en place de `room_config` entre les deux appels, et vérifie que la décision change bien sans
+reconstruction (`services/civitas-agent/tests/test_live_reload.py`) — la route HTTP elle-même
+n'est pas testable dans cet environnement (dépendances lourdes indisponibles, cf. §Tests
+unitaires), mais le mécanisme dont elle dépend est prouvé fonctionner.
 
 ### Migration du schéma `room_configs` — colonne `peer_enabled` → `agent_enabled`
 
-Cohérent avec la disparition du concept "peer" : une migration Alembic dédiée, **additive et
-réversible**, en 3 étapes espacées dans le temps (jamais un `ALTER COLUMN RENAME` brutal qui
-casserait `room-spawner`/`peer` encore en service pendant la bascule) :
+**Migration A appliquée et validée dans cette session**, pas seulement planifiée. Cohérent
+avec la disparition du concept "peer" : une migration Alembic additive et réversible, en 3
+étapes espacées dans le temps (jamais un `ALTER COLUMN RENAME` brutal qui casserait
+`room-spawner`/`peer` encore en service pendant la bascule) :
 
 ```
-Migration A (début Phase 2) : ADD COLUMN agent_enabled BOOLEAN DEFAULT TRUE
+Migration A (FAITE, cf. ci-dessous) : ADD COLUMN agent_enabled BOOLEAN NOT NULL DEFAULT TRUE
                                → backfill agent_enabled = peer_enabled pour les lignes existantes
                                → civitas-orchestrator lit/écrit agent_enabled
                                → services/room-spawner (encore actif en parallèle, cf. §Bascule
                                  progressive) continue de lire/écrire peer_enabled
-                               → un trigger applicatif (dans room-config, pas en DB) recopie
-                                 chaque écriture de l'un vers l'autre tant que les deux
-                                 orchestrateurs coexistent
+                               → une synchronisation applicative (dans room-config, PAS en DB —
+                                 jamais de trigger SQL, pour rester lisible et traçable dans les
+                                 logs) recopie chaque écriture de l'un vers l'autre tant que les
+                                 deux orchestrateurs coexistent
 Migration B (Phase 6)        : suppression de la synchronisation applicative +
-                               DROP COLUMN peer_enabled, une fois room-spawner désactivé
+                               DROP COLUMN peer_enabled, une fois room-spawner désactivé —
+                               PAS écrite par anticipation, seulement au moment de la Phase 6
 ```
+
+Fichiers touchés : `services/room-config/app/models/room_config.py` (colonne),
+`app/schemas/room_config.py` (`RoomConfigCreate`/`Update`/`Response`),
+`app/services/room_config_service.py` (`_sync_agent_peer_enabled`, appelée dans
+`create_room_config`/`reserve_room_config`/`update_room_config`, et
+`build_agent_context` qui expose désormais `agent_enabled` à côté de `peer_enabled` sous
+`permissions`), `migrations/versions/0002_add_agent_enabled.py`.
+
+**Validation** : la migration a été exécutée contre une vraie base Postgres (16.15, installée
+dans l'environnement de développement via `apt`), pas seulement relue. Méthode : schéma
+pré-migration reconstruit à l'identique de la révision 0001 (SQL brut, pas
+`Base.metadata.create_all()` avec les modèles actuels, pour ne pas fausser le test), 4 lignes
+avec des valeurs `peer_enabled` hétérogènes insérées, migration appliquée, backfill vérifié
+ligne par ligne (`agent_enabled` reproduit exactement `peer_enabled`, pas une valeur par
+défaut uniforme), puis downgrade/re-upgrade vérifiés pour la réversibilité complète —
+formalisé dans `services/room-config/tests/test_migration_0002.py`. La synchronisation
+applicative bidirectionnelle (create/update/reserve, dans les deux sens, y compris le cas où
+aucun des deux flags n'est fourni) est testée dans
+`services/room-config/tests/test_agent_enabled_sync.py` (9 tests), également contre une vraie
+base Postgres dédiée (`tests/conftest.py`).
 
 `RoomConfigUpdate`/`RoomConfigResponse` (schémas Pydantic, `services/room-config/app/schemas/`)
 exposent les deux champs en Migration A, un seul en Migration B — changement non cassant pour
@@ -160,6 +276,11 @@ un flag par room dans `extra_config` (`orchestrator: "legacy" | "civitas-agent"`
 deux consumers Kafka pour décider s'ils doivent agir sur l'événement ou l'ignorer. Permet un
 test A/B room par room, sans big-bang, et un retour arrière immédiat par simple changement de
 flag si un problème est constaté sur `civitas-agent` en conditions réelles.
+
+**Non encore implémenté** (contrairement à la migration `agent_enabled` ci-dessus, qui l'est) :
+ce mécanisme de flag reste au stade de la description — `_handle_kafka_event`
+(`app/main.py`) ne le consulte pas encore. À faire avant tout déploiement en parallèle réel
+avec `room-spawner`.
 
 ### Critère de bascule vers Phase 3
 

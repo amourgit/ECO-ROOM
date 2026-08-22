@@ -325,6 +325,31 @@ async def admin_moderator_status(_: None = Depends(_check_token)):
     return await runtime.browser.get_moderator_status()
 
 
+@app.post("/admin/reload_config")
+async def admin_reload_config(_: None = Depends(_check_token)):
+    """
+    Recharge la configuration room-config EN DIRECT, sans redémarrer le process — appelé par
+    civitas-orchestrator après `/moderator/standby` ou `/moderator/activate`
+    (services/civitas-orchestrator/app/main.py) pour que le nouveau `behavior_mode` prenne
+    effet immédiatement (cf. app/graph/nodes/routing.py, qui relit désormais
+    `deps.room_config` à chaque invocation plutôt qu'une seule fois à la construction du
+    graphe — condition nécessaire pour que cette route ait un effet réel).
+
+    Mutation EN PLACE du dict `runtime.room_config` (clear + update, jamais réassignation) —
+    `runtime.graph_deps.room_config` référence le MÊME objet (passé par référence à la
+    construction de `GraphDeps`, cf. startup()), donc voit la mise à jour immédiatement, sans
+    avoir besoin de reconstruire `runtime.graph_deps` ni le graphe compilé.
+    """
+    fresh = await get_agent_context(settings.ROOM_ID)
+    runtime.room_config.clear()
+    runtime.room_config.update(fresh)
+    log.info(
+        f"[Runtime:{settings.ROOM_ID}] Config rechargée — "
+        f"behavior_mode={fresh.get('behavior_mode')}"
+    )
+    return {"ok": True, "behavior_mode": fresh.get("behavior_mode")}
+
+
 @app.post("/shutdown")
 async def admin_shutdown(_: None = Depends(_check_token)):
     """Arrêt propre demandé par civitas-orchestrator (doc 03 §4.3 teardown)."""

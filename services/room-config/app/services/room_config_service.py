@@ -10,6 +10,30 @@ from app.defaults.prompts import DEFAULT_SYSTEM_PROMPT, build_prompt
 log = logging.getLogger(__name__)
 
 
+def _sync_agent_peer_enabled(payload: dict, fields_set: set[str]) -> dict:
+    """
+    Synchronisation applicative bidirectionnelle entre `peer_enabled` (historique) et
+    `agent_enabled` (successeur, cf. app/models/room_config.py) — PAS un trigger SQL,
+    délibérément, pour rester lisible et traçable dans les logs applicatifs. Ne modifie QUE
+    ce que l'appelant a explicitement fourni (`fields_set`, cf. `BaseModel.model_fields_set`
+    de Pydantic v2) — ne touche jamais aux valeurs par défaut non précisées par l'appelant,
+    pour ne jamais écraser silencieusement une valeur légitimement différente que l'appelant
+    n'a simplement pas mentionnée dans cette requête précise.
+
+    Nécessaire tant que services/room-spawner (déprécié, lit/écrit peer_enabled) et
+    services/civitas-orchestrator (lit/écrit agent_enabled) tournent en parallèle pendant la
+    bascule progressive — cf. docs/architecture/04-plan-migration.md, Phase 2, "Migration du
+    schéma room_configs". Sera retirée en Phase 6 avec la colonne peer_enabled elle-même.
+    """
+    has_peer = "peer_enabled" in fields_set
+    has_agent = "agent_enabled" in fields_set
+    if has_peer and not has_agent:
+        payload["agent_enabled"] = payload["peer_enabled"]
+    elif has_agent and not has_peer:
+        payload["peer_enabled"] = payload["agent_enabled"]
+    return payload
+
+
 def get_room_config(db: Session, room_id: str) -> RoomConfig | None:
     return db.query(RoomConfig).filter(RoomConfig.room_id == room_id).first()
 
@@ -81,8 +105,11 @@ def create_room_config(db: Session, data: RoomConfigCreate) -> RoomConfig:
         language=data.language,
         keywords=data.invocation_keywords,
     )
+    payload = _sync_agent_peer_enabled(
+        data.model_dump(exclude={"system_prompt"}), data.model_fields_set,
+    )
     config = RoomConfig(
-        **data.model_dump(exclude={"system_prompt"}),
+        **payload,
         system_prompt=prompt,
         status="confirmed",
         source="manager_api_legacy",
@@ -111,8 +138,11 @@ def reserve_room_config(db: Session, data: RoomReserveRequest) -> RoomConfig:
         language=data.language,
         keywords=data.invocation_keywords,
     )
+    payload = _sync_agent_peer_enabled(
+        data.model_dump(exclude={"system_prompt"}), data.model_fields_set,
+    )
     config = RoomConfig(
-        **data.model_dump(exclude={"system_prompt"}),
+        **payload,
         system_prompt=prompt,
         status="pending",
         source="manager_api_reserved",
@@ -128,7 +158,9 @@ def update_room_config(db: Session, room_id: str, data: RoomConfigUpdate) -> Roo
     config = get_room_config(db, room_id)
     if not config:
         return None
-    for field, value in data.model_dump(exclude_none=True).items():
+    updates = data.model_dump(exclude_none=True)
+    updates = _sync_agent_peer_enabled(updates, set(updates.keys()))
+    for field, value in updates.items():
         setattr(config, field, value)
     db.commit()
     db.refresh(config)
@@ -167,6 +199,10 @@ def build_agent_context(config: RoomConfig) -> AgentContextResponse:
             # n'existait jamais ici -> retombait systématiquement sur son
             # défaut True, quoi qu'un modérateur ait fait via /moderator/eject.
             "peer_enabled": config.peer_enabled,
+            # Successeur de peer_enabled, même emplacement imbriqué (cf.
+            # app/models/room_config.py) — civitas-orchestrator lit ce chemin
+            # (app/room_config_client.py::is_agent_enabled).
+            "agent_enabled": config.agent_enabled,
         },
         invocation_keywords=config.invocation_keywords,
         tools_allowed=config.tools_allowed,

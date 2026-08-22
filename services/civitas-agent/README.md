@@ -46,7 +46,7 @@ pip install -r requirements-dev.txt --break-system-packages
 python -m pytest -q
 ```
 
-47 tests, tous verts à ce jour (`tests/`) :
+49 tests, tous verts à ce jour (`tests/`) :
 - `test_state.py`, `test_response_policy.py`, `test_context_store.py`,
   `test_speaker_tracker.py` — logique pure portée depuis `services/peer`.
 - `test_registry.py` — gating de permissions du catalogue d'outils (doc 01 §9) : outil
@@ -64,6 +64,12 @@ python -m pytest -q
   quand un SDK de fournisseur n'est pas installé (exécuté dans un environnement où aucun des 3
   SDK de raisonnement n'est présent — le test valide donc un vrai chemin de repli, pas une
   simulation).
+- `test_live_reload.py` — prouve que `POST /admin/reload_config` (déclenché par
+  `civitas-orchestrator` sur `/moderator/standby`/`/moderator/activate`, doc 04 §Phase 2) a un
+  effet réel : mute `GraphDeps.room_config` **en place** et vérifie que le **même graphe déjà
+  compilé** change bien de décision à l'invocation suivante, sans reconstruction — la
+  correction concrète d'une limitation connue de l'ancien `peer` (`behavior_mode` jamais
+  rafraîchi après le démarrage, cf. doc 04).
 
 Ce que ces tests NE couvrent PAS (nécessite un environnement de déploiement réel, absent de
 l'environnement où ce squelette a été écrit) : navigateur headless contre un vrai Jitsi,

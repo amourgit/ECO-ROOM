@@ -15,6 +15,9 @@ class RoomConfigCreate(BaseModel):
     can_use_rag: bool = False
     can_moderate: bool = False
     peer_enabled: bool = True
+    # cf. app/models/room_config.py — successeur de peer_enabled, synchronisé
+    # applicativement tant que les deux colonnes coexistent (doc 04).
+    agent_enabled: bool = True
     invocation_keywords: list[str] = ["civitas"]
     tools_allowed: list[str] = []
     extra_config: dict[str, Any] = {}
@@ -32,6 +35,7 @@ class RoomConfigUpdate(BaseModel):
     can_use_rag: bool | None = None
     can_moderate: bool | None = None
     peer_enabled: bool | None = None
+    agent_enabled: bool | None = None
     invocation_keywords: list[str] | None = None
     tools_allowed: list[str] | None = None
     extra_config: dict[str, Any] | None = None
@@ -50,6 +54,7 @@ class RoomConfigResponse(BaseModel):
     can_use_rag: bool
     can_moderate: bool
     peer_enabled: bool
+    agent_enabled: bool
     invocation_keywords: list[str]
     tools_allowed: list[str]
     extra_config: dict[str, Any]
@@ -98,6 +103,7 @@ class RoomReserveRequest(BaseModel):
     can_use_rag: bool = False
     can_moderate: bool = False
     peer_enabled: bool = True
+    agent_enabled: bool = True
     invocation_keywords: list[str] = ["civitas"]
     tools_allowed: list[str] = []
     extra_config: dict[str, Any] = {}

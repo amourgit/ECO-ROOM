@@ -44,7 +44,20 @@ class DockerAgentRuntimeProvider:
     chemin de latence critique comme dans un CIVITAS Agent."""
 
     def __init__(self):
-        self._client = docker.from_env()
+        # Connexion PARESSEUSE, différée au premier usage réel (cf. propriété `_client`
+        # ci-dessous) — PAS `docker.from_env()` ici. Une première version connectait
+        # immédiatement dans __init__, ce qui empêchait `app.main` d'être ne serait-ce
+        # qu'IMPORTÉ (donc testé) sans démon Docker déjà actif, et aurait fait planter
+        # l'Orchestrateur au démarrage — avant même de pouvoir servir `/health` — sur une
+        # indisponibilité Docker transitoire. La connexion réelle n'est tentée qu'au premier
+        # spawn/teardown/is_healthy/list_running effectif.
+        self.__client = None
+
+    @property
+    def _client(self):
+        if self.__client is None:
+            self.__client = docker.from_env()
+        return self.__client
 
     async def spawn(self, room_id: str, env: dict[str, str]) -> AgentHandle:
         container_name = slugify_room_id(room_id)

@@ -62,3 +62,17 @@ async def state(handle: AgentHandle) -> dict:
 
 async def shutdown(handle: AgentHandle) -> dict:
     return await _post(handle, "/shutdown")
+
+
+async def reload_config(handle: AgentHandle) -> dict:
+    """
+    Force un agent déjà actif à recharger sa configuration room-config immédiatement — cf.
+    services/civitas-agent/app/main.py::admin_reload_config. Utilisé par `/moderator/standby`
+    et `/moderator/activate` (app/main.py) juste après avoir persisté le nouveau
+    `behavior_mode` via room_config_client.set_behavior_mode, pour que le changement prenne
+    effet EN DIRECT sur l'agent déjà connecté, plutôt que seulement à son prochain
+    redémarrage — amélioration délibérée par rapport à l'ancien `set_peer_standby`
+    (services/room-spawner/app/spawner.py), qui ne notifiait jamais le peer déjà actif, cf.
+    docs/architecture/04-plan-migration.md.
+    """
+    return await _post(handle, "/admin/reload_config")

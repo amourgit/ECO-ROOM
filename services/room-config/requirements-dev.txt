@@ -1,0 +1,5 @@
+# Dépendances de développement uniquement — jamais installées dans l'image Docker de
+# production (Dockerfile n'installe que requirements.txt). Nécessaires pour exécuter
+# `pytest` (cf. tests/ et README.md — nécessite aussi un Postgres accessible localement).
+
+pytest>=8.0

@@ -25,13 +25,25 @@ pip install -r requirements-dev.txt --break-system-packages
 python -m pytest -q
 ```
 
-9 tests, tous verts à ce jour (`tests/`) : `test_registry.py` (le registre `room_id →
-container` ne mélange jamais deux rooms) et `test_docker_runtime.py` (`slugify_room_id` est
-déterministe, respecte le charset Docker, et ne fait jamais collisionner deux rooms distinctes
-même après troncature — cf. doc 03 §3.1). Le spawn/teardown Docker réel
-(`DockerAgentRuntimeProvider`) n'est pas testé ici : il nécessite un vrai daemon Docker,
-absent de l'environnement où ce squelette a été écrit — critère de bascule vers la Phase 2 du
-plan de migration (doc 04).
+23 tests, tous verts à ce jour (`tests/`) :
+- `test_registry.py` — le registre `room_id → container` ne mélange jamais deux rooms.
+- `test_docker_runtime.py` — `slugify_room_id` est déterministe, respecte le charset Docker,
+  et ne fait jamais collisionner deux rooms distinctes même après troncature (cf. doc 03 §3.1).
+- `test_room_config_client.py` — `is_agent_enabled` lit bien le chemin imbriqué correct
+  (`permissions.agent_enabled`/`permissions.peer_enabled`), pas la racine de la réponse —
+  régression d'un bug réel trouvé et corrigé dans cette session (cf. doc 04 §Phase 2).
+- `test_moderator_routes.py` — les routes `/moderator/inject|eject|standby|activate`
+  reproduisent fidèlement (ou améliorent délibérément) le comportement de l'original
+  `services/room-spawner/app/spawner.py`, vérifié ligne par ligne — deux régressions ciblées
+  s'assurent que `standby` ne détruit jamais le container et qu'`activate` n'en spawne jamais
+  un nouveau (deux bugs réels trouvés et corrigés dans cette session, cf. doc 04 §Phase 2).
+
+Le spawn/teardown Docker réel (`DockerAgentRuntimeProvider`) n'est pas testé de bout en bout
+ici : il nécessite un vrai daemon Docker, absent de l'environnement où ce squelette a été
+écrit — critère de bascule vers la Phase 3 du plan de migration (doc 04). Sa connexion au
+démon Docker a en revanche été rendue **paresseuse** (différée au premier usage réel) dans
+cette session, précisément parce que la connexion immédiate dans `__init__` empêchait
+`app.main` d'être ne serait-ce qu'importé sans démon Docker déjà actif — corrigé et vérifié.
 
 ## Démarrage local (développement)
 
